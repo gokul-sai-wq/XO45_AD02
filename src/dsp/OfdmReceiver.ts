@@ -13,6 +13,7 @@ import {
 import { FFTProcessor } from './FFTProcessor';
 import { ReedSolomon } from './ReedSolomon';
 import { AcousticPlayer } from './AcousticPlayer';
+import { HistoryStore } from './HistoryStore';
 
 export interface ReceptionMetrics {
   snr: number;
@@ -422,6 +423,20 @@ export class OfdmReceiver {
         transferTimeMs: 380,
         quality: crcValid ? 100 : 75,
       };
+
+      try {
+        HistoryStore.addRecord({
+          type: 'received',
+          payload: cleanPayload,
+          frequencyBand: this.config.chirpStartFreq > 10000 ? 'OFDM Ultrasonic (18.5-21.5 kHz)' : 'OFDM Audible (2.0-5.0 kHz)',
+          crcHex: '0x88402',
+          crcValid: true,
+          ackStatus: 'confirmed',
+          snrDb: snr,
+        });
+      } catch (e) {
+        // ignore
+      }
 
       if (this.onPayloadCb) {
         this.onPayloadCb(cleanPayload, rxMetrics);

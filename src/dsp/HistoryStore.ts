@@ -26,6 +26,10 @@ class HistoryStoreManager {
     return [...this.records];
   }
 
+  public getLatestReceived(): TransmissionRecord | null {
+    return this.records.find((r) => r.type === 'received') || null;
+  }
+
   public addRecord(record: Omit<TransmissionRecord, 'id' | 'timestamp'>): void {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
