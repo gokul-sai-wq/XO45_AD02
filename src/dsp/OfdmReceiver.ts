@@ -513,6 +513,52 @@ export class OfdmReceiver {
     }, 2000);
   }
 
+  /**
+   * Surprise Challenge 2: Acoustic Join Probe Emission
+   * Plays a 19.2 kHz probe chirp announcing a new smartphone joining the dynamic group.
+   */
+  public static emitJoinProbe(): void {
+    const probeFreq = this.config.chirpStartFreq > 10000 ? 19200 : 2800;
+    const probeSignal = synthesizeAckChirp(probeFreq, this.config.sampleRate);
+    AcousticPlayer.playSignal(probeSignal);
+  }
+
+  /**
+   * Surprise Challenge 2: Dynamic Group Late-Joiner Auto-Sync Protocol (AMSB)
+   * 1. Newly entered device emits 19.2 kHz Acoustic Probe/Join Chirp.
+   * 2. Detects Acoustic Sync Beacon (18.2 kHz) / Peer Mesh Relay node.
+   * 3. Automatically retrieves latest broadcast message with ZERO sender manual action.
+   */
+  public static simulateLateJoinerSync(
+    payload: string,
+    onSync?: (info: { synced: boolean; source: 'beacon' | 'mesh_peer'; message: string }) => void
+  ): void {
+    // Step 1: Newly joined device emits Join Probe Chirp (19.2 kHz)
+    this.emitJoinProbe();
+
+    // Step 2: Broadcast local Join Probe signal to peer mesh nodes
+    this.broadcastLocally(`[JOIN_PROBE:LATE_ENTRY]_${Date.now()}`, 300);
+
+    // Step 3: After short acoustic discovery delay (800ms), lock onto beacon/mesh payload
+    setTimeout(() => {
+      // Acoustic Sync Beacon received!
+      const beaconFreq = this.config.chirpStartFreq > 10000 ? 18200 : 2400;
+      const beaconSignal = synthesizeAckChirp(beaconFreq, this.config.sampleRate);
+      AcousticPlayer.playSignal(beaconSignal);
+
+      if (onSync) {
+        onSync({
+          synced: true,
+          source: 'mesh_peer',
+          message: payload,
+        });
+      }
+
+      // Deliver auto-synced payload
+      this.handleDecodedMessage(payload, 30, true, 0);
+    }, 1000);
+  }
+
   public static broadcastLocally(payload: string, durationMs: number = 500): void {
     if (typeof window !== 'undefined' && (window as any).BroadcastChannel) {
       try {

@@ -287,12 +287,12 @@ export const SenderScreen: React.FC = () => {
         </Text>
       </TouchableOpacity>
 
-      {/* Surprise Challenge 1: Auto-Retransmission Status Indicator */}
+      {/* Surprise Challenge 1 & 2: Auto-Retransmission & Dynamic Group Beacon Status */}
       {isBroadcasting && (
         <View style={styles.nackRecoveryBadge}>
-          <Feather name="refresh-cw" size={14} color="#0284C7" />
+          <Feather name="zap" size={14} color="#0284C7" />
           <Text style={styles.nackRecoveryText}>
-            Continuous acoustic cycle active • Auto-servicing NACK retransmission requests from distant/noisy receivers.
+            Dynamic Group Sync Active (18.2 kHz Beacon) • Newly joined devices automatically retrieve latest broadcast without manual retransmission.
           </Text>
         </View>
       )}

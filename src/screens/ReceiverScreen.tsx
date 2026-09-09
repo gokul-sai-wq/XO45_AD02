@@ -38,6 +38,9 @@ export const ReceiverScreen: React.FC = () => {
     statusText: string;
   } | null>(null);
 
+  const [lateJoinerSynced, setLateJoinerSynced] = useState(false);
+  const [syncSource, setSyncSource] = useState<'beacon' | 'mesh_peer' | null>(null);
+
   useEffect(() => {
     const config =
       listenMode === 'ultrasonic'
@@ -108,6 +111,8 @@ export const ReceiverScreen: React.FC = () => {
     setHasReceived(false);
     setReceivedMessage('');
     setMetrics(null);
+    setLateJoinerSynced(false);
+    setSyncSource(null);
   };
 
   // Compute signal quality string & percentage from dB level
@@ -147,6 +152,21 @@ export const ReceiverScreen: React.FC = () => {
               Latency: <Text style={styles.metaBold}>{metrics?.transferTimeMs || 160} ms</Text>
             </Text>
           </View>
+
+          {/* Surprise Challenge 2: Dynamic Group Late-Joiner Banner */}
+          {lateJoinerSynced && (
+            <View style={styles.dynamicGroupBanner}>
+              <View style={styles.ackLeft}>
+                <Feather name="zap" size={16} color="#0284C7" />
+                <Text style={styles.dynamicGroupText}>
+                  Dynamic Group Auto-Synced (Late-Joiner)
+                </Text>
+              </View>
+              <Text style={styles.dynamicGroupSub}>
+                Via {syncSource === 'mesh_peer' ? 'Acoustic Peer Mesh Node' : 'Acoustic Beacon (18.2 kHz)'}
+              </Text>
+            </View>
+          )}
 
           {/* ACK Confirmation Banner */}
           <View style={styles.ackBanner}>
@@ -537,6 +557,27 @@ const styles = StyleSheet.create({
   metaBold: {
     fontWeight: '600',
     color: '#0F172A',
+  },
+  dynamicGroupBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginBottom: 12,
+  },
+  dynamicGroupText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0369A1',
+  },
+  dynamicGroupSub: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '500',
   },
   ackBanner: {
     flexDirection: 'row',
