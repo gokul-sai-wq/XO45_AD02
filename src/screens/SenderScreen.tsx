@@ -67,6 +67,9 @@ export const SenderScreen: React.FC = () => {
         : AUDIBLE_OFDM_CONFIG;
 
     try {
+      // Play brief audible start chirp (1200 Hz tone) to confirm speaker playback
+      AcousticPlayer.playTone(1200, 150);
+
       const modulator = new OfdmModulator(config);
       const signal = modulator.synthesize(text.trim());
       const durationMs = Math.round(signal.durationSec * 1000);

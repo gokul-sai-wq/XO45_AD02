@@ -64,7 +64,8 @@ export class AcousticPlayer {
             await ctx.resume().catch(() => {});
           }
 
-          const buffer = ctx.createBuffer(1, signal.samples.length, signal.sampleRate);
+          const targetSampleRate = ctx.sampleRate || signal.sampleRate || 48000;
+          const buffer = ctx.createBuffer(1, signal.samples.length, targetSampleRate);
           buffer.getChannelData(0).set(signal.samples);
 
           const source = ctx.createBufferSource();
@@ -157,6 +158,32 @@ export class AcousticPlayer {
 
     if (this.audioCtx && this.audioCtx.state === 'running') {
       this.audioCtx.suspend().catch(() => {});
+    }
+  }
+
+  /**
+   * Play a direct audible confirmation tone (e.g. 1000 Hz or 2200 Hz tone)
+   */
+  public static async playTone(freq: number = 1200, durationMs: number = 150): Promise<void> {
+    const ctx = await this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationMs / 1000);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + durationMs / 1000);
+    } catch (e) {
+      // ignore
     }
   }
 }
