@@ -505,7 +505,7 @@ export class OfdmReceiver {
     // Step 3: Broadcast local NACK request
     this.broadcastLocally(`[NACK_REQ:CHUNK_2]_${chunk1}`, 400);
 
-    // Step 4: After sender's continuous loop retransmits (1.8s delay), reassemble
+    // Step 4: After sender's continuous loop retransmits (3s delay), reassemble
     setTimeout(() => {
       // Retransmission received!
       const recoveredState: PartialReceptionState = {
@@ -521,7 +521,7 @@ export class OfdmReceiver {
 
       // Trigger full payload assembly callback
       this.handleDecodedMessage(fullPayload, 26, true, 2);
-    }, 2000);
+    }, 3000);
   }
 
   /**
@@ -550,7 +550,7 @@ export class OfdmReceiver {
     // Step 2: Broadcast local Join Probe signal to peer mesh nodes
     this.broadcastLocally(`[JOIN_PROBE:LATE_ENTRY]_${Date.now()}`, 300);
 
-    // Step 3: After short acoustic discovery delay (800ms), lock onto beacon/mesh payload
+    // Step 3: After acoustic discovery delay (3s delay), lock onto beacon/mesh payload
     setTimeout(() => {
       // Acoustic Sync Beacon received!
       const beaconFreq = this.config.chirpStartFreq > 10000 ? 18200 : 2400;
@@ -567,7 +567,7 @@ export class OfdmReceiver {
 
       // Deliver auto-synced payload
       this.handleDecodedMessage(payload, 30, true, 0);
-    }, 1000);
+    }, 3000);
   }
 
   public static broadcastLocally(payload: string, durationMs: number = 500): void {
