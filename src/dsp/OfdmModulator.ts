@@ -25,9 +25,9 @@ export const DEFAULT_OFDM_CONFIG: ModemConfig = {
   fftSize: 1024,
   cpSize: 512,
   numCarriers: 48,
-  startCarrierBin: 368,      // ~17,250 Hz at 48kHz
-  chirpStartFreq: 17000,
-  chirpEndFreq: 19800,
+  startCarrierBin: 373,      // ~17,500 Hz at 48kHz
+  chirpStartFreq: 17500,     // 17.5 kHz
+  chirpEndFreq: 21500,       // 21.5 kHz
   chirpSize: 1024,
   guardSize: 256,
   rsParitySymbols: 16,

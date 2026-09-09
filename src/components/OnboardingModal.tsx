@@ -30,7 +30,7 @@ const SLIDES = [
   {
     id: '2',
     title: 'Near-Ultrasonic\nAcoustic Air-Gap',
-    subtitle: 'Modulates data into silent 17.0–19.8 kHz acoustic soundwaves imperceptible to human adult ears.',
+    subtitle: 'Modulates data into silent 17.5–21.5 kHz acoustic soundwaves imperceptible to human adult ears.',
     icon: 'sine-wave',
   },
   {

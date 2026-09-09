@@ -628,7 +628,7 @@ export class OfdmReceiver {
         HistoryStore.addRecord({
           type: 'received',
           payload: cleanPayload,
-          frequencyBand: this.config.chirpStartFreq > 10000 ? 'OFDM Ultrasonic (18.5-21.5 kHz)' : 'OFDM Audible (2.0-5.0 kHz)',
+          frequencyBand: this.config.chirpStartFreq > 10000 ? 'OFDM Ultrasonic (17.5-21.5 kHz)' : 'OFDM Audible (2.0-5.0 kHz)',
           crcHex: '0x88402',
           crcValid: true,
           ackStatus: 'confirmed',

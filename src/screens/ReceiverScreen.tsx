@@ -245,7 +245,7 @@ export const ReceiverScreen: React.FC = () => {
           HistoryStore.addRecord({
             type: 'received',
             payload: isConfidential ? `🔒 [Confidential] ${payloadToProcess}` : payloadToProcess,
-            frequencyBand: '17.0 – 20.4 kHz',
+            frequencyBand: '17.5 – 21.5 kHz',
             crcHex: rxMetrics.crcHex,
             crcValid: rxMetrics.crcValid,
             ackStatus: 'confirmed',

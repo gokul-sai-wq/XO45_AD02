@@ -86,7 +86,7 @@ export const SenderScreen: React.FC = () => {
       HistoryStore.addRecord({
         type: 'sent',
         payload: isConfidential ? `🔒 [Confidential - Passkey] ${text.trim()}` : text.trim(),
-        frequencyBand: '17.0 – 20.4 kHz',
+        frequencyBand: '17.5 – 21.5 kHz',
         crcHex: '0x88402',
         crcValid: true,
         ackStatus: 'confirmed',

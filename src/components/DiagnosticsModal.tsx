@@ -80,7 +80,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
               </View>
               <View style={styles.specBox}>
                 <Text style={styles.specKey}>CARRIER BAND</Text>
-                <Text style={styles.specVal}>18.0 - 20.0 kHz</Text>
+                <Text style={styles.specVal}>17.5 - 21.5 kHz</Text>
               </View>
             </View>
           </View>
