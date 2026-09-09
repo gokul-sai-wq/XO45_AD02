@@ -127,4 +127,4 @@ eas build -p android --profile preview
 - **Hackathon**: XO Hackathon 2026
 - **Track**: Mobile App Development / Android
 - **Problem Statement**: PS02 - Acoustic One-to-Many Communication
-- **Project Name**: EcoWave
+- **Project Name**: EchoWave
