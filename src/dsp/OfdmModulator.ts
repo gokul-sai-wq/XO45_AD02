@@ -46,6 +46,19 @@ export const AUDIBLE_OFDM_CONFIG: ModemConfig = {
   rsParitySymbols: 16,
 };
 
+export const MID_BAND_OFDM_CONFIG: ModemConfig = {
+  sampleRate: 48000,
+  fftSize: 1024,
+  cpSize: 512,
+  numCarriers: 48,
+  startCarrierBin: 341,       // ~16,000 Hz
+  chirpStartFreq: 15500,
+  chirpEndFreq: 19000,
+  chirpSize: 1024,
+  guardSize: 256,
+  rsParitySymbols: 16,
+};
+
 const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 export function bufferToBase64(buffer: Uint8Array): string {

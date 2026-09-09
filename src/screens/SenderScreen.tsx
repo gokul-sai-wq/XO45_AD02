@@ -13,6 +13,7 @@ import { Theme } from '../theme';
 import {
   OfdmModulator,
   DEFAULT_OFDM_CONFIG,
+  MID_BAND_OFDM_CONFIG,
   AUDIBLE_OFDM_CONFIG,
 } from '../dsp/OfdmModulator';
 import { OfdmReceiver } from '../dsp/OfdmReceiver';
@@ -29,7 +30,7 @@ interface ConfirmedDevice {
 export const SenderScreen: React.FC = () => {
   const [text, setText] = useState('https://exam.hall.local/paper-b');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [frequencyMode, setFrequencyMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
+  const [frequencyMode, setFrequencyMode] = useState<'ultrasonic' | 'midband' | 'audible'>('ultrasonic');
   const [burstCount, setBurstCount] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -46,7 +47,7 @@ export const SenderScreen: React.FC = () => {
 
   const handleBroadcast = async () => {
     // If already broadcasting, stop immediately!
-    if (isBroadcastingRef.current) {
+    if (isBroadcasting) {
       isBroadcastingRef.current = false;
       setIsBroadcasting(false);
       AcousticPlayer.stop();
@@ -61,6 +62,8 @@ export const SenderScreen: React.FC = () => {
     const config =
       frequencyMode === 'ultrasonic'
         ? DEFAULT_OFDM_CONFIG
+        : frequencyMode === 'midband'
+        ? MID_BAND_OFDM_CONFIG
         : AUDIBLE_OFDM_CONFIG;
 
     try {
@@ -227,7 +230,25 @@ export const SenderScreen: React.FC = () => {
                   frequencyMode === 'ultrasonic' && styles.freqModeBtnTextActive,
                 ]}
               >
-                Inaudible (18.5 kHz)
+                Ultra (18.5 kHz)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.freqModeBtn,
+                frequencyMode === 'midband' && styles.freqModeBtnActive,
+              ]}
+              onPress={() => setFrequencyMode('midband')}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.freqModeBtnText,
+                  frequencyMode === 'midband' && styles.freqModeBtnTextActive,
+                ]}
+              >
+                Extended (16.0 kHz)
               </Text>
             </TouchableOpacity>
 
@@ -245,7 +266,7 @@ export const SenderScreen: React.FC = () => {
                   frequencyMode === 'audible' && styles.freqModeBtnTextActive,
                 ]}
               >
-                Audible Test (2.2 kHz)
+                Audible (2.2 kHz)
               </Text>
             </TouchableOpacity>
           </View>

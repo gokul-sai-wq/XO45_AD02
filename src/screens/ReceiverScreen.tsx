@@ -17,6 +17,7 @@ import {
 } from '../dsp/OfdmReceiver';
 import {
   DEFAULT_OFDM_CONFIG,
+  MID_BAND_OFDM_CONFIG,
   AUDIBLE_OFDM_CONFIG,
 } from '../dsp/OfdmModulator';
 import { HistoryStore } from '../dsp/HistoryStore';
@@ -28,7 +29,7 @@ export const ReceiverScreen: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [carrierLocked, setCarrierLocked] = useState(false);
   const [signalLevelDb, setSignalLevelDb] = useState(-52);
-  const [listenMode, setListenMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
+  const [listenMode, setListenMode] = useState<'ultrasonic' | 'midband' | 'audible'>('ultrasonic');
   const [metrics, setMetrics] = useState<ReceptionMetrics | null>(null);
   const [partialState, setPartialState] = useState<{
     isPartial: boolean;
@@ -76,6 +77,8 @@ export const ReceiverScreen: React.FC = () => {
     const config =
       listenMode === 'ultrasonic'
         ? DEFAULT_OFDM_CONFIG
+        : listenMode === 'midband'
+        ? MID_BAND_OFDM_CONFIG
         : AUDIBLE_OFDM_CONFIG;
 
     OfdmReceiver.startListening(
@@ -338,7 +341,25 @@ export const ReceiverScreen: React.FC = () => {
                   listenMode === 'ultrasonic' && styles.freqPillTextActive,
                 ]}
               >
-                Inaudible (18.5 kHz)
+                Ultra (18.5 kHz)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.freqPill,
+                listenMode === 'midband' && styles.freqPillActive,
+              ]}
+              onPress={() => setListenMode('midband')}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.freqPillText,
+                  listenMode === 'midband' && styles.freqPillTextActive,
+                ]}
+              >
+                Extended (16.0 kHz)
               </Text>
             </TouchableOpacity>
 
@@ -356,7 +377,7 @@ export const ReceiverScreen: React.FC = () => {
                   listenMode === 'audible' && styles.freqPillTextActive,
                 ]}
               >
-                Audible Test (2.2 kHz)
+                Audible (2.2 kHz)
               </Text>
             </TouchableOpacity>
           </View>
