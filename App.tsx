@@ -101,11 +101,15 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    height: Platform.OS === 'web' ? ('100vh' as any) : '100%',
+    maxHeight: Platform.OS === 'web' ? ('100vh' as any) : undefined,
     backgroundColor: Theme.colors.bg,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    overflow: 'hidden',
   },
   container: {
     flex: 1,
+    height: '100%',
     backgroundColor: Theme.colors.bg,
     maxWidth: Platform.OS === 'web' ? 480 : undefined,
     width: '100%',
@@ -114,11 +118,15 @@ const styles = StyleSheet.create({
     borderRightWidth: Platform.OS === 'web' ? 1 : 0,
     borderColor: Theme.colors.border,
     position: 'relative',
+    overflow: 'hidden',
   },
   pagerWrapper: {
     flex: 1,
+    height: '100%',
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    height: '100%',
   },
 });

@@ -71,13 +71,13 @@ export const FloatingNavBar: React.FC<FloatingNavBarProps> = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute',
     bottom: Platform.OS === 'ios' ? 32 : 24,
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100,
+    zIndex: 9999,
   },
   floatingCapsule: {
     flexDirection: 'row',
