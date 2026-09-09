@@ -426,6 +426,29 @@ export const ReceiverScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Top Header Banner */}
+      <View style={[styles.topHeaderBanner, isConfidential && styles.darkHeaderBanner]}>
+        <View style={[styles.headerIconCircle, isConfidential && styles.darkHeaderIconCircle]}>
+          <Feather name={isConfidential ? "shield" : "radio"} size={20} color="#FFFFFF" />
+        </View>
+        <View style={styles.headerTextCol}>
+          <View style={styles.headerTitleRow}>
+            <Text style={[styles.headerTitle, isConfidential && styles.darkTextMain]}>
+              {isConfidential ? "Confidential Receiver Station" : "Receive Message"}
+            </Text>
+            <View style={styles.p2pBadge}>
+              <Feather name="share-2" size={11} color="#10B981" />
+              <Text style={styles.p2pBadgeText}>P2P Mode</Text>
+            </View>
+          </View>
+          <Text style={[styles.headerSubtitle, isConfidential && styles.darkTextSub]}>
+            {isConfidential
+              ? "Listening for encrypted air-gap sound broadcasts from peers."
+              : "Listening for acoustic sound wave data from peer devices."}
+          </Text>
+        </View>
+      </View>
+
       {/* 🔊 Acoustic Sound Mode Selector (Ultrasonic vs Audible) */}
       <View style={[styles.modeCard, isConfidential && styles.darkCard]}>
         <Text style={[styles.modeCardLabel, isConfidential && styles.darkTextMain]}>
@@ -1802,6 +1825,65 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  topHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  darkHeaderBanner: {
+    backgroundColor: '#1E293B',
+    borderColor: '#334155',
+  },
+  headerIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  darkHeaderIconCircle: {
+    backgroundColor: '#059669',
+  },
+  headerTextCol: {
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  p2pBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  p2pBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
   },
   modeCard: {
     backgroundColor: '#FFFFFF',

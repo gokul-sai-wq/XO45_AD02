@@ -207,13 +207,19 @@ export const SenderScreen: React.FC = () => {
           <Feather name={isConfidential ? "shield" : "send"} size={20} color="#FFFFFF" />
         </View>
         <View style={styles.headerTextCol}>
-          <Text style={[styles.headerTitle, isConfidential && styles.darkTextMain]}>
-            {isConfidential ? "Confidential Broadcast Station" : "Send Message"}
-          </Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={[styles.headerTitle, isConfidential && styles.darkTextMain]}>
+              {isConfidential ? "Confidential Broadcast Station" : "Send Message"}
+            </Text>
+            <View style={styles.p2pBadge}>
+              <Feather name="share-2" size={11} color="#10B981" />
+              <Text style={styles.p2pBadgeText}>P2P Mode</Text>
+            </View>
+          </View>
           <Text style={[styles.headerSubtitle, isConfidential && styles.darkTextSub]}>
             {isConfidential
               ? "All air-gap sound broadcasts encrypted with secret passkey."
-              : "Broadcast your message to multiple devices using sound."}
+              : "Broadcast your message to peer devices using sound waves."}
           </Text>
         </View>
       </View>
@@ -525,11 +531,30 @@ const styles = StyleSheet.create({
   headerTextCol: {
     flex: 1,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 2,
+  },
+  p2pBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  p2pBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#065F46',
   },
   headerSubtitle: {
     fontSize: 12,
