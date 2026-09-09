@@ -1,65 +1,37 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Theme } from '../theme';
 
 interface HeaderProps {
-  mode: 'broadcast' | 'receive';
-  onModeChange: (mode: 'broadcast' | 'receive') => void;
+  stationName?: string;
+  isOnline?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ mode, onModeChange }) => {
+export const Header: React.FC<HeaderProps> = ({
+  stationName = 'Station 01',
+}) => {
   return (
     <View style={styles.container}>
-      {/* Brand Header */}
-      <View style={styles.brandRow}>
-        <View style={styles.logoGroup}>
-          <View style={styles.logoIcon}>
-            <MaterialCommunityIcons name="waveform" size={20} color={Theme.colors.primary} />
-          </View>
-          <View>
+      <View style={styles.headerRow}>
+        <View style={styles.brandGroup}>
+          <Text style={styles.greeting}>Offline Acoustic Air-Gap</Text>
+          <View style={styles.titleRow}>
+            <View style={styles.logoIcon}>
+              <MaterialCommunityIcons name="waveform" size={18} color={Theme.colors.primary} />
+            </View>
             <Text style={styles.title}>SoundBridge</Text>
-            <Text style={styles.subtitle}>Offline Acoustic Communication</Text>
           </View>
         </View>
 
-        <View style={styles.statusBadge}>
-          <View style={styles.greenDot} />
-          <Text style={styles.statusBadgeText}>Ready</Text>
+        {/* Right Station Avatar Pill (Matching the 'A' avatar in the reference screenshot) */}
+        <View style={styles.avatarPill}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.stationText}>{stationName}</Text>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitial}>S</Text>
+          </View>
         </View>
-      </View>
-
-      {/* Clean Mode Switcher */}
-      <View style={styles.tabTrack}>
-        <TouchableOpacity
-          style={[styles.tabBtn, mode === 'broadcast' && styles.tabBtnActive]}
-          onPress={() => onModeChange('broadcast')}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons
-            name="arrow-up-circle"
-            size={16}
-            color={mode === 'broadcast' ? Theme.colors.primary : Theme.colors.textMuted}
-          />
-          <Text style={[styles.tabText, mode === 'broadcast' && styles.tabTextActive]}>
-            Send
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, mode === 'receive' && styles.tabBtnActive]}
-          onPress={() => onModeChange('receive')}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons
-            name="arrow-down-circle"
-            size={16}
-            color={mode === 'receive' ? Theme.colors.primary : Theme.colors.textMuted}
-          />
-          <Text style={[styles.tabText, mode === 'receive' && styles.tabTextActive]}>
-            Receive
-          </Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -74,88 +46,73 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Theme.colors.border,
   },
-  brandRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Theme.spacing.md,
   },
-  logoGroup: {
+  brandGroup: {
+    gap: 2,
+  },
+  greeting: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Theme.colors.textMuted,
+    letterSpacing: 0.2,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   logoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Theme.radius.md,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     backgroundColor: Theme.colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: Theme.colors.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
-  subtitle: {
-    fontSize: 11,
-    color: Theme.colors.textMuted,
-    marginTop: 1,
-  },
-  statusBadge: {
+  avatarPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Theme.colors.successMuted,
-    paddingHorizontal: 8,
+    gap: 8,
+    backgroundColor: Theme.colors.bgCardSubtle,
+    borderRadius: 25,
     paddingVertical: 4,
-    borderRadius: Theme.radius.full,
+    paddingLeft: 10,
+    paddingRight: 4,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.2)',
+    borderColor: Theme.colors.border,
   },
-  greenDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  greenPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: Theme.colors.success,
   },
-  statusBadgeText: {
+  stationText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: Theme.colors.successText,
+    fontWeight: '700',
+    color: Theme.colors.textPrimary,
   },
-  tabTrack: {
-    flexDirection: 'row',
-    backgroundColor: Theme.colors.bgCardSubtle,
-    borderRadius: Theme.radius.md,
-    padding: 3,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  avatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: Theme.radius.md - 2,
   },
-  tabBtnActive: {
-    backgroundColor: Theme.colors.bgCard,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Theme.colors.textMuted,
-  },
-  tabTextActive: {
-    fontWeight: '600',
+  avatarInitial: {
+    fontSize: 12,
+    fontWeight: '800',
     color: Theme.colors.textPrimary,
   },
 });

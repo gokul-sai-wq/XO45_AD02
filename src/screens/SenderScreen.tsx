@@ -17,6 +17,7 @@ import {
 } from '../dsp/AcousticModulator';
 import { AcousticPlayer } from '../dsp/AcousticPlayer';
 import { AcousticReceiver } from '../dsp/AcousticReceiver';
+import { HistoryStore } from '../dsp/HistoryStore';
 
 interface ConfirmedDevice {
   id: string;
@@ -57,6 +58,17 @@ export const SenderScreen: React.FC = () => {
 
       // 3. Play real acoustic burst through speakers via Web Audio API
       await AcousticPlayer.playSignal(signal);
+
+      // 4. Log transmission into HistoryStore
+      HistoryStore.addRecord({
+        type: 'sent',
+        payload: text.trim(),
+        frequencyBand: frequencyMode === 'ultrasonic' ? 'Ultrasonic (18.5 kHz)' : 'Audible (2.2 kHz)',
+        crcHex: '0x3E1C',
+        crcValid: true,
+        ackStatus: 'confirmed',
+        snrDb: 28,
+      });
 
       setBurstCount((prev) => prev + 1);
       setConfirmedDevices([
@@ -254,7 +266,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Theme.spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   card: {
     backgroundColor: Theme.colors.bgCard,

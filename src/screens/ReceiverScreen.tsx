@@ -19,6 +19,7 @@ import {
   DEFAULT_ULTRASONIC_CONFIG,
   DEFAULT_AUDIBLE_CONFIG,
 } from '../dsp/AcousticModulator';
+import { HistoryStore } from '../dsp/HistoryStore';
 
 export const ReceiverScreen: React.FC = () => {
   const [hasReceived, setHasReceived] = useState(false);
@@ -42,6 +43,16 @@ export const ReceiverScreen: React.FC = () => {
         setReceivedMessage(payload);
         setMetrics(rxMetrics);
         setHasReceived(true);
+
+        HistoryStore.addRecord({
+          type: 'received',
+          payload,
+          frequencyBand: listenMode === 'ultrasonic' ? 'Ultrasonic (18.5 kHz)' : 'Audible (2.2 kHz)',
+          crcHex: rxMetrics.crcHex,
+          crcValid: rxMetrics.crcValid,
+          ackStatus: 'confirmed',
+          snrDb: rxMetrics.snr,
+        });
       },
       (status) => {
         setIsListening(status.isListening);
@@ -255,7 +266,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Theme.spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   statusBar: {
     flexDirection: 'row',
