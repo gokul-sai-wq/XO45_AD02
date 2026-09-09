@@ -744,18 +744,18 @@ export const ReceiverScreen: React.FC = () => {
               />
             </View>
           </View>
-
-          {/* Info Banner */}
-          <View style={[styles.infoBanner, isConfidential && styles.darkInfoBanner]}>
-            <View style={styles.infoIconCircle}>
-              <Feather name="info" size={16} color="#2563EB" />
-            </View>
-            <Text style={[styles.infoBannerText, isConfidential && styles.darkTextSub]}>
-              Use a quiet environment and keep volume at max on the sender device.
-            </Text>
-          </View>
         </View>
       )}
+
+      {/* ℹ️ Receiver Information Card */}
+      <View style={[styles.infoBanner, isConfidential && styles.darkInfoBanner]}>
+        <View style={styles.infoIconCircle}>
+          <Feather name="info" size={16} color="#2563EB" />
+        </View>
+        <Text style={[styles.infoBannerText, isConfidential && styles.darkTextSub]}>
+          Ensure sender volume is high (80-100%). In noisy environments, switch to Audible Data Sound (2.0-6.0 kHz).
+        </Text>
+      </View>
 
       {/* 📋 Receiver Area Recent Logs Section with Clear Button */}
       <View style={[styles.recentLogsCard, isConfidential && styles.darkCard]}>

@@ -315,6 +315,16 @@ export const SenderScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* ℹ️ Information Card */}
+      <View style={[styles.infoBanner, isConfidential && styles.darkInfoBanner]}>
+        <View style={styles.infoIconCircle}>
+          <Feather name="info" size={16} color="#2563EB" />
+        </View>
+        <Text style={[styles.infoBannerText, isConfidential && styles.darkTextSub]}>
+          Information Card: Select Ultrasonic (17.5-21.5 kHz) for silent transfers, or Audible Data Sound (2.0-6.0 kHz) for retro acoustic wave audio. Keep device volume at 80-100%.
+        </Text>
+      </View>
+
       {/* Message Input Section */}
       <View style={styles.fieldSection}>
         <Text style={[styles.fieldLabel, isConfidential && styles.darkTextMain]}>Message</Text>
@@ -878,6 +888,36 @@ const styles = StyleSheet.create({
   },
   modeTabTextActive: {
     color: '#FFFFFF',
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    gap: 12,
+  },
+  darkInfoBanner: {
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
+  },
+  infoIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1E40AF',
+    lineHeight: 18,
+    fontWeight: '500',
   },
 });
 
