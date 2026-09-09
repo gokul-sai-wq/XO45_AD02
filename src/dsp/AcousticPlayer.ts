@@ -16,6 +16,27 @@ export class AcousticPlayer {
   private static currentAudio: any = null;
 
   /**
+   * Synchronously unlock AudioContext within a user interaction gesture (click/touch)
+   */
+  public static unlock(): void {
+    const AudioContextClass =
+      (typeof window !== 'undefined' && ((window as any).AudioContext || (window as any).webkitAudioContext));
+
+    if (AudioContextClass) {
+      try {
+        if (!this.audioCtx || this.audioCtx.state === 'closed') {
+          this.audioCtx = new AudioContextClass();
+        }
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  /**
    * Get or initialize AudioContext with the browser's native hardware sample rate.
    */
   private static async getAudioContext(): Promise<any> {
@@ -29,7 +50,7 @@ export class AcousticPlayer {
         this.audioCtx = new AudioContextClass();
       }
       if (this.audioCtx.state === 'suspended') {
-        await this.audioCtx.resume();
+        await this.audioCtx.resume().catch(() => {});
       }
       return this.audioCtx;
     } catch (e) {
@@ -169,6 +190,32 @@ export class AcousticPlayer {
 
     if (this.audioCtx && this.audioCtx.state === 'running') {
       this.audioCtx.suspend().catch(() => {});
+    }
+  }
+
+  /**
+   * Play a direct audible confirmation tone (e.g. 1000 Hz or 2200 Hz tone)
+   */
+  public static async playTone(freq: number = 1200, durationMs: number = 150): Promise<void> {
+    const ctx = await this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationMs / 1000);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + durationMs / 1000);
+    } catch (e) {
+      // ignore
     }
   }
 }

@@ -46,6 +46,16 @@ export const ReceiverScreen: React.FC = () => {
   const [carrierLocked, setCarrierLocked] = useState(false);
   const [signalLevelDb, setSignalLevelDb] = useState(-90);
   const [metrics, setMetrics] = useState<ReceptionMetrics | null>(null);
+  const [partialState, setPartialState] = useState<{
+    isPartial: boolean;
+    receivedChunks: number;
+    totalChunks: number;
+    percent: number;
+    statusText: string;
+  } | null>(null);
+
+  const [lateJoinerSynced, setLateJoinerSynced] = useState(false);
+  const [syncSource, setSyncSource] = useState<'beacon' | 'mesh_peer' | null>(null);
 
   // Receiver Area Recent Logs state & deduplication ref
   const [recentLogs, setRecentLogs] = useState<ReceiverLogItem[]>([]);
@@ -350,6 +360,8 @@ export const ReceiverScreen: React.FC = () => {
     setHasReceived(false);
     setReceivedMessage('');
     setMetrics(null);
+    setLateJoinerSynced(false);
+    setSyncSource(null);
   };
 
   // Signal quality label & bar width
@@ -1232,6 +1244,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0F172A',
   },
+  dynamicGroupBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginBottom: 12,
+  },
+  dynamicGroupText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0369A1',
+  },
+  dynamicGroupSub: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '500',
+  },
   ackBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1656,5 +1689,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#090D16',
+  },
+  partialCard: {
+    width: '100%',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 16,
+    marginBottom: 16,
+  },
+  partialCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  partialTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B45309',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  partialStatusText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  partialTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FEF3C7',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  partialFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  nackStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+  },
+  nackStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
 });
