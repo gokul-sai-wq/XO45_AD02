@@ -61,6 +61,7 @@ export class OfdmReceiver {
   private static onPayloadCb: PayloadCallback | null = null;
   private static onPartialCb: PartialCallback | null = null;
   private static onStatusCb: StatusCallback | null = null;
+  private static globalListeners: Set<PayloadCallback> = new Set();
 
   private static fragmentBuffer: Map<number, string> = new Map();
   private static totalChunksExpected: number = 1;
@@ -92,6 +93,7 @@ export class OfdmReceiver {
     this.initChirpReference(config);
 
     this.onPayloadCb = onPayload;
+    this.globalListeners.add(onPayload);
     if (onStatus) this.onStatusCb = onStatus;
     if (onPartial) this.onPartialCb = onPartial;
 
@@ -410,14 +412,27 @@ export class OfdmReceiver {
     crcValid: boolean = true,
     errorsCorrected: number = 0
   ): void {
-    if (this.onPayloadCb && payload.trim().length > 0) {
-      this.onPayloadCb(payload.trim(), {
+    const cleanPayload = payload.trim();
+    if (cleanPayload.length > 0) {
+      const rxMetrics: ReceptionMetrics = {
         snr,
         crcValid,
         crcHex: '0x88402',
         errorsCorrected,
         transferTimeMs: 380,
         quality: crcValid ? 100 : 75,
+      };
+
+      if (this.onPayloadCb) {
+        this.onPayloadCb(cleanPayload, rxMetrics);
+      }
+
+      this.globalListeners.forEach((cb) => {
+        try {
+          cb(cleanPayload, rxMetrics);
+        } catch (e) {
+          // ignore
+        }
       });
 
       // Emit brief Acoustic ACK chirp
@@ -541,6 +556,9 @@ export class OfdmReceiver {
   }
 
   public static broadcastLocally(payload: string, durationMs: number = 500): void {
+    // Deliver in-memory to all active listeners immediately
+    this.handleDecodedMessage(payload, 28, true, 0);
+
     if (typeof window !== 'undefined' && (window as any).BroadcastChannel) {
       try {
         const bc = new (window as any).BroadcastChannel('soundbridge_ofdm_channel');
