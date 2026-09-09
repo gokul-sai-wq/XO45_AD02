@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <title>SoundBridge - Sender</title>
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#004ac6",
+            "on-error": "#ffffff",
+            "secondary-fixed": "#85f8c4",
+            "on-background": "#131b2e",
+            "surface-dim": "#d2d9f4",
+            "tertiary-fixed-dim": "#ffb77d",
+            "primary-fixed": "#dbe1ff",
+            "outline": "#737686",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed": "#002114",
+            "surface-bright": "#faf8ff",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "outline-variant": "#c3c6d7",
+            "background": "#faf8ff",
+            "tertiary": "#824500",
+            "surface": "#faf8ff",
+            "primary-fixed-dim": "#b4c5ff",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed-variant": "#003ea8",
+            "on-primary-container": "#eeefff",
+            "on-secondary-fixed-variant": "#005137",
+            "on-tertiary-fixed": "#2f1500",
+            "surface-variant": "#dae2fd",
+            "on-secondary-container": "#00714e",
+            "surface-container": "#eaedff",
+            "secondary-fixed-dim": "#68dba9",
+            "inverse-surface": "#283044",
+            "surface-container-highest": "#dae2fd",
+            "on-primary-fixed": "#00174b",
+            "tertiary-fixed": "#ffdcc3",
+            "on-primary": "#ffffff",
+            "inverse-on-surface": "#eef0ff",
+            "surface-tint": "#0053db",
+            "tertiary-container": "#a65900",
+            "on-surface": "#131b2e",
+            "inverse-primary": "#b4c5ff",
+            "error": "#ba1a1a",
+            "secondary-container": "#82f5c1",
+            "surface-container-high": "#e2e7ff",
+            "surface-container-lowest": "#ffffff",
+            "error-container": "#ffdad6",
+            "on-error-container": "#93000a",
+            "primary-container": "#2563eb",
+            "on-tertiary-container": "#ffede1",
+            "surface-container-low": "#f2f3ff",
+            "on-surface-variant": "#434655",
+            "secondary": "#006c4a"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "gutter-desktop": "1rem",
+            "step-1": "0.125rem",
+            "step-12": "3rem",
+            "step-3": "0.5rem",
+            "step-8": "2rem",
+            "step-4": "0.75rem",
+            "margin-desktop": "2rem",
+            "margin-mobile": "1rem",
+            "gutter-mobile": "0.75rem",
+            "step-2": "0.25rem",
+            "step-5": "1rem",
+            "step-7": "1.5rem",
+            "step-10": "2.5rem",
+            "step-6": "1.25rem"
+          },
+          fontFamily: {
+            "mono-readout-sm": ["JetBrains Mono"],
+            "body-md": ["Inter"],
+            "display-lg": ["Inter"],
+            "body-lg": ["Inter"],
+            "headline-md": ["Inter"],
+            "label-caps": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "mono-readout-lg": ["JetBrains Mono"],
+            "headline-sm": ["Inter"],
+            "mono-readout-md": ["JetBrains Mono"]
+          },
+          fontSize: {
+            "mono-readout-sm": ["11px", { lineHeight: "14px", letterSpacing: "0em", fontWeight: "400" }],
+            "body-md": ["13px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "400" }],
+            "display-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.025em", fontWeight: "600" }],
+            "body-lg": ["15px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "headline-md": ["22px", { lineHeight: "28px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "label-caps": ["11px", { lineHeight: "14px", letterSpacing: "0.06em", fontWeight: "600" }],
+            "display-lg-mobile": ["26px", { lineHeight: "32px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "mono-readout-lg": ["20px", { lineHeight: "24px", letterSpacing: "-0.02em", fontWeight: "500" }],
+            "headline-sm": ["16px", { lineHeight: "22px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "mono-readout-md": ["13px", { lineHeight: "18px", letterSpacing: "-0.01em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @layer base {
+      html, body { width: 100vw; margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+      main > :first-child { margin-top: 0 !important; }
+      main > :last-child { margin-bottom: 0 !important; }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col selection:bg-surface-variant max-w-md mx-auto relative shadow-2xl">
+  <!-- Top Header -->
+  <header class="fixed top-0 max-w-md w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+    <div class="h-28 flex flex-col justify-between px-margin-mobile pb-step-3">
+      <div class="flex items-center justify-between pt-step-2">
+        <div class="flex flex-col gap-step-1">
+          <div class="flex items-center gap-step-2">
+            <span class="text-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-[20px]">graphic_eq</span>
+            </span>
+            <span class="font-headline-sm text-headline-sm tracking-tight text-on-surface uppercase font-bold">SoundBridge</span>
+          </div>
+          <div class="flex items-center gap-step-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            <span class="font-mono-readout-sm text-mono-readout-sm text-on-surface-variant uppercase tracking-wider">Acoustic Ready • 18.5 kHz</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-step-2">
+          <button aria-label="Hardware Diagnostics" class="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[20px]">sensors</span>
+          </button>
+          <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+          </div>
+        </div>
+      </div>
+      <div class="w-full flex p-step-1 bg-surface-container rounded-xl">
+        <a href="sender.html" class="flex-1 h-9 rounded-lg bg-surface-container-lowest text-on-surface font-headline-sm text-[12px] flex items-center justify-center gap-step-2 shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all">
+          <span class="material-symbols-outlined text-[16px] text-primary">arrow_upward</span>
+          <span>Send (Upload)</span>
+        </a>
+        <a href="receiver.html" class="flex-1 h-9 rounded-lg text-on-surface-variant hover:text-on-surface font-headline-sm text-[12px] flex items-center justify-center gap-step-2 transition-all">
+          <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+          <span>Receive (Download)</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex flex-col relative w-full px-margin-mobile pt-28 pb-24 bg-surface min-h-screen">
+    <div class="flex flex-col w-full gap-step-5 pb-step-8">
+      <!-- Section: Acoustic Output Bay -->
+      <section class="bg-surface-container-lowest p-step-4 rounded-xl shadow-sm flex flex-col gap-step-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-step-2">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Acoustic Output Bay</span>
+          </div>
+          <div class="flex items-center gap-step-2">
+            <span class="font-mono-readout-sm text-mono-readout-sm bg-surface-container-high px-step-2 py-0.5 rounded text-on-surface">DAC READY</span>
+            <span class="font-mono-readout-lg text-mono-readout-lg font-semibold text-primary tracking-tight" id="level-readout">-8.4 dBFS</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-step-2 bg-surface-container-low p-step-3 rounded-lg">
+          <div class="flex items-center justify-between font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">
+            <span>18.0 kHz</span>
+            <span class="text-primary font-medium">18.5 kHz (Carrier Peak)</span>
+            <span>20.0 kHz</span>
+          </div>
+          <div class="h-10 w-full flex items-end gap-[2px] pt-1" id="spectrum-container">
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[20%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[25%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[22%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[30%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[38%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[45%]"></div>
+            <div class="flex-1 bg-primary-container rounded-t-sm h-[72%]"></div>
+            <div class="flex-1 bg-primary rounded-t-sm h-[94%]"></div>
+            <div class="flex-1 bg-primary-container rounded-t-sm h-[78%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[40%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[32%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[28%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[20%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[15%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[12%]"></div>
+            <div class="flex-1 bg-surface-variant rounded-t-sm h-[10%]"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-step-2 pt-step-1 text-center font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">
+            <div class="flex flex-col bg-surface-container-lowest p-step-1 rounded">
+              <span class="text-[9px] uppercase tracking-wider text-outline">Modulation</span>
+              <span class="font-medium text-on-surface">16-MFSK</span>
+            </div>
+            <div class="flex flex-col bg-surface-container-lowest p-step-1 rounded">
+              <span class="text-[9px] uppercase tracking-wider text-outline">Acoustic Band</span>
+              <span class="font-medium text-on-surface">18.0–20.0 kHz</span>
+            </div>
+            <div class="flex flex-col bg-surface-container-lowest p-step-1 rounded">
+              <span class="text-[9px] uppercase tracking-wider text-outline">Sampling</span>
+              <span class="font-medium text-on-surface">48.0 kHz</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Data Payload Buffer -->
+      <section class="bg-surface-container-lowest p-step-4 rounded-xl shadow-sm flex flex-col gap-step-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-step-2">
+            <span class="material-symbols-outlined text-[18px] text-on-surface-variant">data_object</span>
+            <span class="font-headline-sm text-headline-sm text-on-surface">Data Payload Buffer</span>
+          </div>
+          <span class="font-mono-readout-sm text-mono-readout-sm bg-secondary-container text-on-secondary-container px-step-2 py-0.5 rounded font-medium">RS-FEC L3</span>
+        </div>
+        <div class="relative bg-surface-container-low rounded-lg p-step-3 flex flex-col gap-step-2">
+          <textarea class="w-full bg-transparent font-mono-readout-md text-mono-readout-md text-on-surface resize-none focus:outline-none placeholder:text-outline" id="payload-input" placeholder="Enter text payload, URI token, or raw hex..." rows="3">https://soundbridge.local/transfer/t-88402</textarea>
+          <div class="flex items-center justify-between pt-step-2 font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">
+            <div class="flex items-center gap-step-3">
+              <span class="text-on-surface font-medium" id="char-counter">48 / 256 B</span>
+              <span class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">timer</span>
+                <span id="burst-estimate">~1.4s Burst</span>
+              </span>
+            </div>
+            <span class="text-secondary font-medium">Encoded Frame Ok</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-step-2">
+          <button class="h-9 px-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-[12px] flex items-center justify-center gap-step-1 transition-all" onclick="handlePaste()">
+            <span class="material-symbols-outlined text-[16px] text-primary">content_paste</span>
+            <span>Paste</span>
+          </button>
+          <button class="h-9 px-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-[12px] flex items-center justify-center gap-step-1 transition-all" onclick="handleInsertUrl()">
+            <span class="material-symbols-outlined text-[16px] text-primary">link</span>
+            <span>Insert URL</span>
+          </button>
+          <button class="h-9 px-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-headline-sm text-[12px] flex items-center justify-center gap-step-1 transition-all" onclick="handleClear()">
+            <span class="material-symbols-outlined text-[16px] text-outline">backspace</span>
+            <span>Clear</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Section: Modulation Frequency Protocol -->
+      <section class="flex flex-col gap-step-2">
+        <div class="flex items-center justify-between px-step-1">
+          <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Modulation Frequency Protocol</span>
+          <span class="font-mono-readout-sm text-mono-readout-sm text-outline">PHYS-CH: 04</span>
+        </div>
+        <div class="grid grid-cols-2 gap-step-2" id="carrier-grid">
+          <button class="carrier-card text-left p-step-3 rounded-xl bg-inverse-surface text-inverse-on-surface shadow-sm transition-all flex flex-col justify-between h-24" onclick="selectCarrier(this, '18.5')">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-mono-readout-md text-mono-readout-md font-semibold text-inverse-primary">18.5 kHz</span>
+              <span class="material-symbols-outlined text-[16px] text-inverse-primary">check_circle</span>
+            </div>
+            <div>
+              <div class="font-headline-sm text-[13px] leading-tight">Standard Ultrasound</div>
+              <div class="font-mono-readout-sm text-[10px] text-surface-variant opacity-80 pt-0.5">Inaudible • Balanced</div>
+            </div>
+          </button>
+          <button class="carrier-card text-left p-step-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface shadow-sm transition-all flex flex-col justify-between h-24" onclick="selectCarrier(this, '19.2')">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-mono-readout-md text-mono-readout-md font-semibold text-primary">19.2 kHz</span>
+              <span class="material-symbols-outlined text-[16px] text-outline opacity-40">radio_button_unchecked</span>
+            </div>
+            <div>
+              <div class="font-headline-sm text-[13px] leading-tight">High Density</div>
+              <div class="font-mono-readout-sm text-[10px] text-on-surface-variant pt-0.5">Fast Burst Rate</div>
+            </div>
+          </button>
+          <button class="carrier-card text-left p-step-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface shadow-sm transition-all flex flex-col justify-between h-24" onclick="selectCarrier(this, '20.0')">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-mono-readout-md text-mono-readout-md font-semibold text-primary">20.0 kHz</span>
+              <span class="material-symbols-outlined text-[16px] text-outline opacity-40">radio_button_unchecked</span>
+            </div>
+            <div>
+              <div class="font-headline-sm text-[13px] leading-tight">Max Inaudible</div>
+              <div class="font-mono-readout-sm text-[10px] text-on-surface-variant pt-0.5">High Attenuation</div>
+            </div>
+          </button>
+          <button class="carrier-card text-left p-step-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface shadow-sm transition-all flex flex-col justify-between h-24" onclick="selectCarrier(this, '16.0')">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-mono-readout-md text-mono-readout-md font-semibold text-primary">16.0 kHz</span>
+              <span class="material-symbols-outlined text-[16px] text-outline opacity-40">radio_button_unchecked</span>
+            </div>
+            <div>
+              <div class="font-headline-sm text-[13px] leading-tight">Long-Range</div>
+              <div class="font-mono-readout-sm text-[10px] text-on-surface-variant pt-0.5">Penetrating Acoustic</div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Section: Available Receivers -->
+      <section class="bg-surface-container-lowest p-step-4 rounded-xl shadow-sm flex flex-col gap-step-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-step-2">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+            </span>
+            <span class="font-headline-sm text-headline-sm text-on-surface">Available Receivers (3)</span>
+          </div>
+          <span class="font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">Continuous Ping</span>
+        </div>
+        <div class="flex flex-col gap-step-2">
+          <div class="flex items-center justify-between p-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer">
+            <div class="flex items-center gap-step-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[18px]">smartphone</span>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-headline-sm text-[13px] text-on-surface truncate">Pixel 7 Pro</span>
+                <span class="font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">Range ~1.2m • SNR +24 dB</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-step-3 flex-shrink-0">
+              <div class="flex items-end gap-[2px] h-3">
+                <div class="w-[2px] h-1.5 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-2 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-2.5 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-3 bg-secondary rounded-full"></div>
+              </div>
+              <span class="font-mono-readout-sm text-mono-readout-sm bg-secondary-container text-on-secondary-container px-step-2 py-0.5 rounded font-medium">Verified</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between p-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer">
+            <div class="flex items-center gap-step-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[18px]">smartphone</span>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-headline-sm text-[13px] text-on-surface truncate">Galaxy S23</span>
+                <span class="font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">Range ~2.0m • SNR +18 dB</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-step-3 flex-shrink-0">
+              <div class="flex items-end gap-[2px] h-3">
+                <div class="w-[2px] h-1.5 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-2 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-2.5 bg-secondary rounded-full"></div>
+                <div class="w-[2px] h-1 bg-outline-variant rounded-full"></div>
+              </div>
+              <span class="font-mono-readout-sm text-mono-readout-sm bg-secondary-container text-on-secondary-container px-step-2 py-0.5 rounded font-medium">Verified</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between p-step-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer">
+            <div class="flex items-center gap-step-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-on-surface-variant shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[18px]">tablet_mac</span>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-headline-sm text-[13px] text-on-surface truncate">Living Room iPad</span>
+                <span class="font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">Range ~2.8m • SNR +11 dB</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-step-3 flex-shrink-0">
+              <div class="flex items-end gap-[2px] h-3">
+                <div class="w-[2px] h-1.5 bg-tertiary-container rounded-full"></div>
+                <div class="w-[2px] h-2 bg-tertiary-container rounded-full"></div>
+                <div class="w-[2px] h-1 bg-outline-variant rounded-full"></div>
+                <div class="w-[2px] h-1 bg-outline-variant rounded-full"></div>
+              </div>
+              <span class="font-mono-readout-sm text-mono-readout-sm bg-surface-container-high text-on-surface-variant px-step-2 py-0.5 rounded font-medium">Standby</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Broadcast Action Button -->
+      <section class="flex flex-col gap-step-2">
+        <button class="w-full h-12 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-headline-sm flex items-center justify-center gap-step-2 shadow-md transition-all active:scale-[0.99]" id="broadcast-btn" onclick="startTransmission()">
+          <span class="material-symbols-outlined text-[20px]" id="broadcast-icon">volume_up</span>
+          <span id="broadcast-text">Send Audio Payload</span>
+        </button>
+        <div class="text-center font-body-md text-[11px] leading-tight text-on-surface-variant px-step-2">
+          Hardware speaker will emit inaudible acoustic waves toward target receivers.
+        </div>
+      </section>
+
+      <!-- Footer Info -->
+      <div class="flex items-center justify-between p-step-3 bg-surface-container-low rounded-lg font-mono-readout-sm text-mono-readout-sm text-on-surface-variant">
+        <div class="flex items-center gap-step-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          <span>Buffer: Ready</span>
+        </div>
+        <span>48 kHz 24-bit DAC</span>
+        <span class="text-secondary font-medium">CRC-32 Valid</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 max-w-md w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
+    <div class="h-16 px-margin-mobile flex items-center justify-around">
+      <a class="flex flex-col items-center justify-center min-w-[64px] h-12 transition-all gap-step-1 text-primary font-semibold" href="#">
+        <span class="material-symbols-outlined text-[22px]">swap_calls</span>
+        <span class="font-label-caps text-label-caps">Transfer</span>
+      </a>
+      <a class="flex flex-col items-center justify-center min-w-[64px] h-12 text-on-surface-variant hover:text-on-surface transition-all gap-step-1" href="#">
+        <span class="material-symbols-outlined text-[22px]">history</span>
+        <span class="font-label-caps text-label-caps">History</span>
+      </a>
+      <a class="flex flex-col items-center justify-center min-w-[64px] h-12 text-on-surface-variant hover:text-on-surface transition-all gap-step-1" href="#">
+        <span class="material-symbols-outlined text-[22px]">tune</span>
+        <span class="font-label-caps text-label-caps">Settings</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    function handlePaste() {
+      const textarea = document.getElementById('payload-input');
+      navigator.clipboard.readText().then(text => {
+        if (text) {
+          textarea.value = text;
+          updatePayloadMetrics();
+        }
+      }).catch(() => {
+        textarea.value = 'TOKEN::SEC-9082-AIRGAP';
+        updatePayloadMetrics();
+      });
+    }
+
+    function handleInsertUrl() {
+      const textarea = document.getElementById('payload-input');
+      textarea.value = 'https://soundbridge.local/p/' + Math.floor(100000 + Math.random() * 900000);
+      updatePayloadMetrics();
+    }
+
+    function handleClear() {
+      const textarea = document.getElementById('payload-input');
+      textarea.value = '';
+      updatePayloadMetrics();
+    }
+
+    function updatePayloadMetrics() {
+      const textarea = document.getElementById('payload-input');
+      const bytes = new Blob([textarea.value]).size;
+      document.getElementById('char-counter').textContent = bytes + ' / 256 B';
+      const duration = Math.max(0.6, (bytes * 0.03).toFixed(1));
+      document.getElementById('burst-estimate').textContent = '~' + duration + 's Burst';
+    }
+
+    document.getElementById('payload-input').addEventListener('input', updatePayloadMetrics);
+
+    function selectCarrier(card, freq) {
+      const cards = document.querySelectorAll('.carrier-card');
+      cards.forEach(c => {
+        c.className = 'carrier-card text-left p-step-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface shadow-sm transition-all flex flex-col justify-between h-24';
+        const icon = c.querySelector('.material-symbols-outlined');
+        if (icon) {
+          icon.className = 'material-symbols-outlined text-[16px] text-outline opacity-40';
+          icon.textContent = 'radio_button_unchecked';
+        }
+        const title = c.querySelector('.font-mono-readout-md');
+        if (title) title.className = 'font-mono-readout-md text-mono-readout-md font-semibold text-primary';
+      });
+
+      card.className = 'carrier-card text-left p-step-3 rounded-xl bg-inverse-surface text-inverse-on-surface shadow-sm transition-all flex flex-col justify-between h-24';
+      const selIcon = card.querySelector('.material-symbols-outlined');
+      if (selIcon) {
+        selIcon.className = 'material-symbols-outlined text-[16px] text-inverse-primary';
+        selIcon.textContent = 'check_circle';
+      }
+      const selTitle = card.querySelector('.font-mono-readout-md');
+      if (selTitle) selTitle.className = 'font-mono-readout-md text-mono-readout-md font-semibold text-inverse-primary';
+    }
+
+    let transmitting = false;
+    function startTransmission() {
+      if (transmitting) return;
+      transmitting = true;
+      const btn = document.getElementById('broadcast-btn');
+      const icon = document.getElementById('broadcast-icon');
+      const text = document.getElementById('broadcast-text');
+      const readout = document.getElementById('level-readout');
+
+      btn.classList.remove('bg-primary');
+      btn.classList.add('bg-secondary');
+      icon.textContent = 'graphic_eq';
+      text.textContent = 'Acoustic Burst Active...';
+      readout.textContent = '-1.2 dBFS';
+
+      const bars = document.querySelectorAll('#spectrum-container > div');
+      const interval = setInterval(() => {
+        bars.forEach(bar => {
+          const h = Math.floor(Math.random() * 80) + 15;
+          bar.style.height = h + '%';
+        });
+      }, 90);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        transmitting = false;
+        btn.classList.remove('bg-secondary');
+        btn.classList.add('bg-primary');
+        icon.textContent = 'volume_up';
+        text.textContent = 'Send Audio Payload';
+        readout.textContent = '-8.4 dBFS';
+        bars.forEach((bar, idx) => {
+          bar.style.height = '';
+        });
+      }, 2800);
+    }
+  </script>
+</body>
+</html>
