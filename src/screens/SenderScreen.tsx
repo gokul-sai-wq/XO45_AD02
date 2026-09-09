@@ -46,6 +46,8 @@ export const SenderScreen: React.FC = () => {
   }, []);
 
   const handleBroadcast = async () => {
+    AcousticPlayer.unlock();
+
     // If already broadcasting, stop immediately!
     if (isBroadcasting) {
       isBroadcastingRef.current = false;

@@ -16,6 +16,27 @@ export class AcousticPlayer {
   private static currentAudio: any = null;
 
   /**
+   * Synchronously unlock AudioContext within a user interaction gesture (click/touch)
+   */
+  public static unlock(): void {
+    const AudioContextClass =
+      (typeof window !== 'undefined' && ((window as any).AudioContext || (window as any).webkitAudioContext));
+
+    if (AudioContextClass) {
+      try {
+        if (!this.audioCtx || this.audioCtx.state === 'closed') {
+          this.audioCtx = new AudioContextClass();
+        }
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  /**
    * Get or initialize AudioContext with the browser's native hardware sample rate.
    */
   private static async getAudioContext(): Promise<any> {
@@ -29,7 +50,7 @@ export class AcousticPlayer {
         this.audioCtx = new AudioContextClass();
       }
       if (this.audioCtx.state === 'suspended') {
-        await this.audioCtx.resume();
+        await this.audioCtx.resume().catch(() => {});
       }
       return this.audioCtx;
     } catch (e) {
