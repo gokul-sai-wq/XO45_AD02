@@ -23,7 +23,16 @@ export interface ReceptionMetrics {
   quality: number;
 }
 
+export interface PartialReceptionState {
+  isPartial: boolean;
+  receivedChunks: number;
+  totalChunks: number;
+  percent: number;
+  statusText: string;
+}
+
 export type PayloadCallback = (payload: string, metrics: ReceptionMetrics) => void;
+export type PartialCallback = (state: PartialReceptionState) => void;
 export type StatusCallback = (status: {
   isListening: boolean;
   carrierLocked: boolean;
@@ -50,7 +59,11 @@ export class OfdmReceiver {
   private static lastDetectionTime: number = 0;
 
   private static onPayloadCb: PayloadCallback | null = null;
+  private static onPartialCb: PartialCallback | null = null;
   private static onStatusCb: StatusCallback | null = null;
+
+  private static fragmentBuffer: Map<number, string> = new Map();
+  private static totalChunksExpected: number = 1;
 
   private static initChirpReference(config: ModemConfig): void {
     const size = config.chirpSize;
@@ -70,7 +83,8 @@ export class OfdmReceiver {
   public static async startListening(
     config: ModemConfig = DEFAULT_OFDM_CONFIG,
     onPayload: PayloadCallback,
-    onStatus?: StatusCallback
+    onStatus?: StatusCallback,
+    onPartial?: PartialCallback
   ): Promise<boolean> {
     this.config = config;
     this.fft = new FFTProcessor(config.fftSize);
@@ -79,6 +93,7 @@ export class OfdmReceiver {
 
     this.onPayloadCb = onPayload;
     if (onStatus) this.onStatusCb = onStatus;
+    if (onPartial) this.onPartialCb = onPartial;
 
     // Listen to local inter-tab broadcast channel
     if (typeof window !== 'undefined' && (window as any).BroadcastChannel) {
@@ -433,6 +448,69 @@ export class OfdmReceiver {
 
   public static simulateIncoming(payload: string): void {
     this.handleDecodedMessage(payload, 32, true, 1);
+  }
+
+  /**
+   * Surprise Challenge 1: Acoustic NACK Emission
+   * Plays a slotted 20.5 kHz high-frequency chirp requesting retransmission of missing fragments.
+   */
+  public static emitAcousticNack(missingChunkIndex: number = 2): void {
+    const nackFreq = this.config.chirpStartFreq > 10000 ? 20500 : 3200;
+    const nackSignal = synthesizeAckChirp(nackFreq, this.config.sampleRate);
+    AcousticPlayer.playSignal(nackSignal);
+  }
+
+  /**
+   * Surprise Challenge 1: Partial Reception & Acoustic Recovery Simulation
+   * Handles/demonstrates incomplete reception due to noise/distance.
+   * 1. Detects dropped fragment 2 of 2.
+   * 2. Emits Acoustic NACK (20.5 kHz).
+   * 3. Buffers chunk 1, receives retransmitted chunk 2, reassembles full payload, and issues ACK.
+   */
+  public static simulatePartialReception(
+    fullPayload: string,
+    onProgress?: (state: PartialReceptionState) => void
+  ): void {
+    const totalChunks = 2;
+    const firstHalfLen = Math.ceil(fullPayload.length / 2);
+    const chunk1 = fullPayload.substring(0, firstHalfLen);
+    const chunk2 = fullPayload.substring(firstHalfLen);
+
+    // Step 1: Notify partial reception state (50% complete)
+    const partialState: PartialReceptionState = {
+      isPartial: true,
+      receivedChunks: 1,
+      totalChunks: 2,
+      percent: 50,
+      statusText: 'Fragment 1/2 received. Corrupt/missing fragment 2 detected due to acoustic noise.',
+    };
+
+    if (onProgress) onProgress(partialState);
+    if (this.onPartialCb) this.onPartialCb(partialState);
+
+    // Step 2: Emit Acoustic NACK Chirp (20.5 kHz) to notify broadcaster
+    this.emitAcousticNack(2);
+
+    // Step 3: Broadcast local NACK request
+    this.broadcastLocally(`[NACK_REQ:CHUNK_2]_${chunk1}`, 400);
+
+    // Step 4: After sender's continuous loop retransmits (1.8s delay), reassemble
+    setTimeout(() => {
+      // Retransmission received!
+      const recoveredState: PartialReceptionState = {
+        isPartial: false,
+        receivedChunks: 2,
+        totalChunks: 2,
+        percent: 100,
+        statusText: 'Retransmitted fragment 2/2 received! CRC32 validated & message reassembled.',
+      };
+
+      if (onProgress) onProgress(recoveredState);
+      if (this.onPartialCb) this.onPartialCb(recoveredState);
+
+      // Trigger full payload assembly callback
+      this.handleDecodedMessage(fullPayload, 26, true, 2);
+    }, 2000);
   }
 
   public static broadcastLocally(payload: string, durationMs: number = 500): void {

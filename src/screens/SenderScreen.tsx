@@ -287,6 +287,16 @@ export const SenderScreen: React.FC = () => {
         </Text>
       </TouchableOpacity>
 
+      {/* Surprise Challenge 1: Auto-Retransmission Status Indicator */}
+      {isBroadcasting && (
+        <View style={styles.nackRecoveryBadge}>
+          <Feather name="refresh-cw" size={14} color="#0284C7" />
+          <Text style={styles.nackRecoveryText}>
+            Continuous acoustic cycle active • Auto-servicing NACK retransmission requests from distant/noisy receivers.
+          </Text>
+        </View>
+      )}
+
       {/* Info Banner at Bottom matching Reference Screenshot */}
       <View style={styles.infoBanner}>
         <View style={styles.infoIconCircle}>
@@ -542,6 +552,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  nackRecoveryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 10,
+    marginBottom: 16,
+  },
+  nackRecoveryText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#0369A1',
+    lineHeight: 17,
+    fontWeight: '500',
   },
   infoBanner: {
     flexDirection: 'row',

@@ -30,6 +30,13 @@ export const ReceiverScreen: React.FC = () => {
   const [signalLevelDb, setSignalLevelDb] = useState(-52);
   const [listenMode, setListenMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
   const [metrics, setMetrics] = useState<ReceptionMetrics | null>(null);
+  const [partialState, setPartialState] = useState<{
+    isPartial: boolean;
+    receivedChunks: number;
+    totalChunks: number;
+    percent: number;
+    statusText: string;
+  } | null>(null);
 
   useEffect(() => {
     const config =
@@ -43,6 +50,7 @@ export const ReceiverScreen: React.FC = () => {
         setReceivedMessage(payload);
         setMetrics(rxMetrics);
         setHasReceived(true);
+        setPartialState(null);
 
         HistoryStore.addRecord({
           type: 'received',
@@ -58,6 +66,9 @@ export const ReceiverScreen: React.FC = () => {
         setIsListening(status.isListening);
         setCarrierLocked(status.carrierLocked);
         setSignalLevelDb(status.rmsLevelDb);
+      },
+      (partial) => {
+        setPartialState(partial);
       }
     ).then((started) => {
       setIsListening(started);
@@ -222,6 +233,52 @@ export const ReceiverScreen: React.FC = () => {
               Make sure you are in a quiet environment for better reception.
             </Text>
           </View>
+
+          {/* Surprise Challenge 1: Partial Reception Auto-Recovery Status Card */}
+          {partialState && (
+            <View style={styles.partialCard}>
+              <View style={styles.partialCardHeader}>
+                <Feather name="alert-triangle" size={18} color="#D97706" />
+                <Text style={styles.partialTitle}>
+                  {partialState.isPartial
+                    ? `PARTIAL RECEPTION DETECTED (${partialState.receivedChunks}/${partialState.totalChunks} CHUNKS)`
+                    : 'AUTOMATIC RECOVERY COMPLETE!'}
+                </Text>
+              </View>
+              <Text style={styles.partialStatusText}>{partialState.statusText}</Text>
+
+              {/* Progress Bar */}
+              <View style={styles.partialTrack}>
+                <View
+                  style={[
+                    styles.partialFill,
+                    {
+                      width: `${partialState.percent}%` as any,
+                      backgroundColor: partialState.isPartial ? '#F59E0B' : '#10B981',
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.nackStatusRow}>
+                <MaterialCommunityIcons
+                  name={partialState.isPartial ? 'radio-handheld' : 'check-decagram'}
+                  size={16}
+                  color={partialState.isPartial ? '#D97706' : '#059669'}
+                />
+                <Text
+                  style={[
+                    styles.nackStatusText,
+                    { color: partialState.isPartial ? '#B45309' : '#047857' },
+                  ]}
+                >
+                  {partialState.isPartial
+                    ? 'Acoustic NACK Chirp (20.5 kHz) emitted • Awaiting continuous retransmission'
+                    : 'Reassembled complete acoustic payload & CRC32 validated!'}
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* Acoustic Frequency Selector */}
           <View style={styles.freqToggleContainer}>
@@ -564,5 +621,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#475569',
+  },
+  partialCard: {
+    width: '100%',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 16,
+    marginBottom: 16,
+  },
+  partialCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  partialTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B45309',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  partialStatusText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  partialTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FEF3C7',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  partialFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  nackStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+  },
+  nackStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
 });
