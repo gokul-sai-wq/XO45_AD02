@@ -17,7 +17,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ExpoStatusBar style="dark" backgroundColor={Theme.colors.bgCard} />
+      <ExpoStatusBar style="dark" />
       <View style={styles.container}>
         {/* Simple Header with Send / Receive */}
         <Header mode={mode} onModeChange={setMode} />

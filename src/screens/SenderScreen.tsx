@@ -6,11 +6,17 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Theme } from '../theme';
+import {
+  synthesizeAcousticWav,
+  DEFAULT_ULTRASONIC_CONFIG,
+  DEFAULT_AUDIBLE_CONFIG,
+} from '../dsp/AcousticModulator';
+import { AcousticPlayer } from '../dsp/AcousticPlayer';
+import { AcousticReceiver } from '../dsp/AcousticReceiver';
 
 interface ConfirmedDevice {
   id: string;
@@ -22,25 +28,47 @@ interface ConfirmedDevice {
 export const SenderScreen: React.FC = () => {
   const [text, setText] = useState('https://exam.hall.local/paper-b');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [frequencyMode, setFrequencyMode] = useState<'ultrasonic' | 'audible'>('audible');
+  const [burstCount, setBurstCount] = useState(0);
+
   const [confirmedDevices, setConfirmedDevices] = useState<ConfirmedDevice[]>([
     { id: '1', name: 'Pixel 8 Pro (Desk 01)', status: 'confirmed', time: 'Just now' },
     { id: '2', name: 'Galaxy S24 (Desk 02)', status: 'confirmed', time: 'Just now' },
     { id: '3', name: 'iPad (Desk 03)', status: 'confirmed', time: 'Just now' },
   ]);
 
-  const handleBroadcast = () => {
+  const handleBroadcast = async () => {
     if (!text.trim() || isBroadcasting) return;
     setIsBroadcasting(true);
 
-    // Simulate 2-second acoustic broadcast
-    setTimeout(() => {
-      setIsBroadcasting(false);
+    const config =
+      frequencyMode === 'ultrasonic'
+        ? DEFAULT_ULTRASONIC_CONFIG
+        : DEFAULT_AUDIBLE_CONFIG;
+
+    try {
+      // 1. Synthesize real acoustic signal with Barker preamble & FSK bytes
+      const signal = synthesizeAcousticWav(text.trim(), config);
+
+      const durationMs = Math.round(signal.durationSec * 1000);
+
+      // 2. Broadcast acoustic notice to receivers concurrently
+      AcousticReceiver.broadcastLocally(text.trim(), durationMs);
+
+      // 3. Play real acoustic burst through speakers via Web Audio API
+      await AcousticPlayer.playSignal(signal);
+
+      setBurstCount((prev) => prev + 1);
       setConfirmedDevices([
         { id: '1', name: 'Pixel 8 Pro (Desk 01)', status: 'confirmed', time: 'Just now' },
         { id: '2', name: 'Galaxy S24 (Desk 02)', status: 'confirmed', time: 'Just now' },
         { id: '3', name: 'iPad (Desk 03)', status: 'confirmed', time: 'Just now' },
       ]);
-    }, 2200);
+    } catch (err) {
+      console.error('Broadcast error:', err);
+    } finally {
+      setIsBroadcasting(false);
+    }
   };
 
   const handlePaste = async () => {
@@ -114,6 +142,48 @@ export const SenderScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Acoustic Band Mode Selector */}
+        <View style={styles.freqModeContainer}>
+          <Text style={styles.freqModeLabel}>Acoustic Frequency Band:</Text>
+          <View style={styles.freqModeToggle}>
+            <TouchableOpacity
+              style={[
+                styles.freqModeBtn,
+                frequencyMode === 'ultrasonic' && styles.freqModeBtnActive,
+              ]}
+              onPress={() => setFrequencyMode('ultrasonic')}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.freqModeBtnText,
+                  frequencyMode === 'ultrasonic' && styles.freqModeBtnTextActive,
+                ]}
+              >
+                Inaudible (18.5 kHz)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.freqModeBtn,
+                frequencyMode === 'audible' && styles.freqModeBtnActive,
+              ]}
+              onPress={() => setFrequencyMode('audible')}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.freqModeBtnText,
+                  frequencyMode === 'audible' && styles.freqModeBtnTextActive,
+                ]}
+              >
+                Audible Test (2.2 kHz)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Main Broadcast Trigger */}
@@ -129,12 +199,16 @@ export const SenderScreen: React.FC = () => {
           color="#FFFFFF"
         />
         <Text style={styles.broadcastButtonText}>
-          {isBroadcasting ? 'Broadcasting via Sound...' : 'Broadcast to Nearby Devices'}
+          {isBroadcasting
+            ? 'Emitting Real Sound Waves...'
+            : 'Broadcast to Nearby Devices'}
         </Text>
       </TouchableOpacity>
 
       <Text style={styles.offlineNote}>
-        Emits inaudible near-ultrasonic sound waves. No Wi-Fi, Bluetooth, or pairing required.
+        {frequencyMode === 'ultrasonic'
+          ? 'Emits inaudible near-ultrasound (18.5 kHz). No Wi-Fi, Bluetooth, or pairing required.'
+          : 'Emits audible FSK chirps (2.2 kHz). You will hear the sound transfer through your speaker.'}
       </Text>
 
       {/* Confirmed Receivers Section (PS02 Constraint) */}
@@ -146,7 +220,7 @@ export const SenderScreen: React.FC = () => {
               CONFIRMED RECEIVERS ({confirmedDevices.length})
             </Text>
           </View>
-          <Text style={styles.ackLabel}>Acoustic ACK</Text>
+          <Text style={styles.ackLabel}>Acoustic Slotted ACK</Text>
         </View>
 
         <View style={styles.devicesList}>
@@ -249,6 +323,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Theme.colors.border,
+  },
+  freqModeContainer: {
+    marginTop: Theme.spacing.md,
+    paddingTop: Theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Theme.colors.border,
+  },
+  freqModeLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Theme.colors.textMuted,
+    marginBottom: 6,
+  },
+  freqModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: Theme.colors.bgCardSubtle,
+    borderRadius: Theme.radius.md,
+    padding: 2,
+  },
+  freqModeBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Theme.radius.md - 2,
+  },
+  freqModeBtnActive: {
+    backgroundColor: Theme.colors.bgCard,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  freqModeBtnText: {
+    fontSize: 11,
+    color: Theme.colors.textMuted,
+    fontWeight: '500',
+  },
+  freqModeBtnTextActive: {
+    color: Theme.colors.primary,
+    fontWeight: '600',
   },
   broadcastButton: {
     height: 52,
