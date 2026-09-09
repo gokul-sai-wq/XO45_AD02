@@ -23,6 +23,7 @@ import {
 } from '../dsp/OfdmReceiver';
 import {
   DEFAULT_OFDM_CONFIG,
+  AUDIBLE_OFDM_CONFIG,
 } from '../dsp/OfdmModulator';
 import { HistoryStore } from '../dsp/HistoryStore';
 import { AcousticCrypto } from '../dsp/AcousticCrypto';
@@ -56,6 +57,9 @@ export const ReceiverScreen: React.FC = () => {
 
   const [lateJoinerSynced, setLateJoinerSynced] = useState(false);
   const [syncSource, setSyncSource] = useState<'beacon' | 'mesh_peer' | null>(null);
+
+  // Acoustic Frequency Mode (Ultrasonic vs Audible)
+  const [acousticMode, setAcousticMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
 
   // Receiver Area Recent Logs state & deduplication ref
   const [recentLogs, setRecentLogs] = useState<ReceiverLogItem[]>([]);
@@ -146,10 +150,9 @@ export const ReceiverScreen: React.FC = () => {
       setCarrierLocked(false);
       setSignalLevelDb(-90);
     } else {
-      setIsScanning(true);
-
+      const config = acousticMode === 'audible' ? AUDIBLE_OFDM_CONFIG : DEFAULT_OFDM_CONFIG;
       const started = await OfdmReceiver.startListening(
-        DEFAULT_OFDM_CONFIG,
+        config,
         (payload, rxMetrics) => {
           // Deduplication safeguard: skip duplicate acoustic payloads within 3s
           const now = Date.now();
@@ -421,8 +424,66 @@ export const ReceiverScreen: React.FC = () => {
     <ScrollView
       style={[styles.container, isConfidential && styles.darkContainer]}
       contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
+      {/* 🔊 Acoustic Sound Mode Selector (Ultrasonic vs Audible) */}
+      <View style={[styles.modeCard, isConfidential && styles.darkCard]}>
+        <Text style={[styles.modeCardLabel, isConfidential && styles.darkTextMain]}>
+          Acoustic Receiver Frequency Band:
+        </Text>
+        <View style={styles.modeTabRow}>
+          <TouchableOpacity
+            style={[
+              styles.modeTabBtn,
+              acousticMode === 'ultrasonic' && (isConfidential ? styles.modeTabActiveDark : styles.modeTabActive),
+            ]}
+            onPress={() => {
+              setAcousticMode('ultrasonic');
+              if (isScanning) {
+                OfdmReceiver.stopListening();
+                setIsScanning(false);
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="volume-x" size={15} color={acousticMode === 'ultrasonic' ? '#FFFFFF' : '#64748B'} />
+            <Text
+              style={[
+                styles.modeTabText,
+                acousticMode === 'ultrasonic' && styles.modeTabTextActive,
+              ]}
+            >
+              Ultrasonic (17.5–21.5 kHz)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.modeTabBtn,
+              acousticMode === 'audible' && (isConfidential ? styles.modeTabActiveDark : styles.modeTabActive),
+            ]}
+            onPress={() => {
+              setAcousticMode('audible');
+              if (isScanning) {
+                OfdmReceiver.stopListening();
+                setIsScanning(false);
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="volume-2" size={15} color={acousticMode === 'audible' ? '#FFFFFF' : '#64748B'} />
+            <Text
+              style={[
+                styles.modeTabText,
+                acousticMode === 'audible' && styles.modeTabTextActive,
+              ]}
+            >
+              Audible Data Sound (2.0–6.0 kHz)
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* 🔒 Confidential Mode Toggle Bar */}
       <View style={[styles.confidentialCard, isConfidential && styles.darkConfidentialCard]}>
         <View style={styles.confidentialHeader}>
@@ -1741,5 +1802,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  modeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 16,
+  },
+  modeCardLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 10,
+  },
+  modeTabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  modeTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modeTabActive: {
+    backgroundColor: '#2563EB',
+  },
+  modeTabActiveDark: {
+    backgroundColor: '#059669',
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  modeTabTextActive: {
+    color: '#FFFFFF',
   },
 });

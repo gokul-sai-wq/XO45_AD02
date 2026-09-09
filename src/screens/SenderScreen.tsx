@@ -16,6 +16,7 @@ import { Theme } from '../theme';
 import {
   OfdmModulator,
   DEFAULT_OFDM_CONFIG,
+  AUDIBLE_OFDM_CONFIG,
 } from '../dsp/OfdmModulator';
 import { OfdmReceiver } from '../dsp/OfdmReceiver';
 import { AcousticPlayer } from '../dsp/AcousticPlayer';
@@ -35,6 +36,9 @@ export const SenderScreen: React.FC = () => {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [burstCount, setBurstCount] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Acoustic Frequency Mode (Ultrasonic vs Audible)
+  const [acousticMode, setAcousticMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
 
   // Confidential Mode & Passkey state
   const [isConfidential, setIsConfidential] = useState(false);
@@ -78,7 +82,8 @@ export const SenderScreen: React.FC = () => {
         payloadToSend = `CONF:${passkey.trim()}:${encryptedData}`;
       }
 
-      const modulator = new OfdmModulator(DEFAULT_OFDM_CONFIG);
+      const config = acousticMode === 'audible' ? AUDIBLE_OFDM_CONFIG : DEFAULT_OFDM_CONFIG;
+      const modulator = new OfdmModulator(config);
       const signal = modulator.synthesize(payloadToSend);
       const durationMs = Math.round(signal.durationSec * 1000);
 
@@ -86,7 +91,7 @@ export const SenderScreen: React.FC = () => {
       HistoryStore.addRecord({
         type: 'sent',
         payload: isConfidential ? `🔒 [Confidential - Passkey] ${text.trim()}` : text.trim(),
-        frequencyBand: '17.5 – 21.5 kHz',
+        frequencyBand: acousticMode === 'audible' ? '2.0 – 6.0 kHz (Audible)' : '17.5 – 21.5 kHz (Ultrasonic)',
         crcHex: '0x88402',
         crcValid: true,
         ackStatus: 'confirmed',
@@ -262,6 +267,52 @@ export const SenderScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         )}
+      </View>
+
+      {/* 🔊 Acoustic Sound Mode Selector (Ultrasonic vs Audible) */}
+      <View style={[styles.modeCard, isConfidential && styles.darkInputCard]}>
+        <Text style={[styles.modeCardLabel, isConfidential && styles.darkTextMain]}>
+          Acoustic Frequency Mode:
+        </Text>
+        <View style={styles.modeTabRow}>
+          <TouchableOpacity
+            style={[
+              styles.modeTabBtn,
+              acousticMode === 'ultrasonic' && (isConfidential ? styles.modeTabActiveDark : styles.modeTabActive),
+            ]}
+            onPress={() => setAcousticMode('ultrasonic')}
+            activeOpacity={0.8}
+          >
+            <Feather name="volume-x" size={15} color={acousticMode === 'ultrasonic' ? '#FFFFFF' : '#64748B'} />
+            <Text
+              style={[
+                styles.modeTabText,
+                acousticMode === 'ultrasonic' && styles.modeTabTextActive,
+              ]}
+            >
+              Ultrasonic (17.5–21.5 kHz)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.modeTabBtn,
+              acousticMode === 'audible' && (isConfidential ? styles.modeTabActiveDark : styles.modeTabActive),
+            ]}
+            onPress={() => setAcousticMode('audible')}
+            activeOpacity={0.8}
+          >
+            <Feather name="volume-2" size={15} color={acousticMode === 'audible' ? '#FFFFFF' : '#64748B'} />
+            <Text
+              style={[
+                styles.modeTabText,
+                acousticMode === 'audible' && styles.modeTabTextActive,
+              ]}
+            >
+              Audible Data Sound (2.0–6.0 kHz)
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Message Input Section */}
@@ -783,6 +834,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
     fontWeight: '600',
+  },
+  modeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 20,
+  },
+  modeCardLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 10,
+  },
+  modeTabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  modeTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modeTabActive: {
+    backgroundColor: '#2563EB',
+  },
+  modeTabActiveDark: {
+    backgroundColor: '#059669',
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  modeTabTextActive: {
+    color: '#FFFFFF',
   },
 });
 
