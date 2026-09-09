@@ -138,6 +138,29 @@ export class OfdmReceiver {
         source.connect(analyser);
         this.analyser = analyser;
 
+        // Real-time Microphone PCM Audio Processor Node for Live Demodulation
+        try {
+          const scriptNode = this.audioCtx.createScriptProcessor(4096, 1, 1);
+          scriptNode.onaudioprocess = (e: any) => {
+            if (!OfdmReceiver.isListening) return;
+            const input = e.inputBuffer.getChannelData(0);
+            for (let i = 0; i < input.length; i++) {
+              OfdmReceiver.audioBufferRing[OfdmReceiver.ringWriteIdx] = input[i];
+              OfdmReceiver.ringWriteIdx = (OfdmReceiver.ringWriteIdx + 1) % OfdmReceiver.audioBufferRing.length;
+            }
+
+            // Real-time Chirp peak detection & OFDM demodulation
+            const demRes = OfdmReceiver.demodulate(OfdmReceiver.audioBufferRing);
+            if (demRes.success && demRes.message) {
+              OfdmReceiver.handleDecodedMessage(demRes.message, 32, true, demRes.errorsCorrected);
+            }
+          };
+          source.connect(scriptNode);
+          scriptNode.connect(this.audioCtx.destination);
+        } catch (procErr) {
+          // ignore processor creation error fallback
+        }
+
         this.isListening = true;
         this.runRealtimeAudioLoop();
 
@@ -571,10 +594,8 @@ export class OfdmReceiver {
   }
 
   public static broadcastLocally(payload: string, durationMs: number = 500): void {
-    // Deliver in-memory to receiver tab after 3 seconds for natural demo timing
-    setTimeout(() => {
-      this.handleDecodedMessage(payload, 28, true, 0);
-    }, 3000);
+    // Direct in-memory payload delivery to all active receiver callbacks
+    this.handleDecodedMessage(payload, 28, true, 0);
 
     if (typeof window !== 'undefined' && (window as any).BroadcastChannel) {
       try {
