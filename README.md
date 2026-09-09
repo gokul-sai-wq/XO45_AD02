@@ -1,4 +1,4 @@
-# SonicCast: Acoustic One-to-Many Offline Communication
+# EchoWave: Acoustic One-to-Many Offline Communication
 > **XO Hackathon | Problem Statement PS02**  
 > *Zero-Network, Zero-Bluetooth, Pure Acoustic Broadcast & Verification System for Android*
 
