@@ -54,59 +54,37 @@ export class AcousticPlayer {
         }
       };
 
-      const safetyTimer = setTimeout(finish, durationMs + 80);
+      const safetyTimer = setTimeout(finish, durationMs + 300);
 
-      try {
-        const ctx = await this.getAudioContext();
+      // 1. Web Audio API / HTML5 Audio (Primary for Web platform)
+      const isWeb = typeof window !== 'undefined' && (window as any).navigator?.product !== 'ReactNative';
+      if (isWeb) {
+        try {
+          const ctx = await this.getAudioContext();
 
-        if (ctx) {
-          if (ctx.state === 'suspended') {
-            await ctx.resume().catch(() => {});
+          if (ctx) {
+            if (ctx.state === 'suspended') {
+              await ctx.resume().catch(() => {});
+            }
+
+            const buffer = ctx.createBuffer(1, signal.samples.length, signal.sampleRate);
+            buffer.getChannelData(0).set(signal.samples);
+
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            this.currentSource = source;
+
+            source.onended = () => {
+              clearTimeout(safetyTimer);
+              finish();
+            };
+
+            source.start(0);
+            return;
           }
 
-          const buffer = ctx.createBuffer(1, signal.samples.length, signal.sampleRate);
-          buffer.getChannelData(0).set(signal.samples);
-
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          this.currentSource = source;
-
-          source.onended = () => {
-            clearTimeout(safetyTimer);
-            finish();
-          };
-
-          source.start(0);
-          return;
-        }
-
-        if (signal.base64Wav && typeof Audio !== 'undefined') {
-          const audio = new Audio(signal.base64Wav);
-          audio.volume = 1.0;
-          this.currentAudio = audio;
-          audio.onended = () => {
-            clearTimeout(safetyTimer);
-            finish();
-          };
-          audio.onerror = () => {
-            clearTimeout(safetyTimer);
-            finish();
-          };
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(finish);
-          }
-          return;
-        }
-
-        clearTimeout(safetyTimer);
-        finish();
-      } catch (err) {
-        console.warn('Web Audio playback error, falling back to HTML5 audio:', err);
-
-        if (signal.base64Wav && typeof Audio !== 'undefined') {
-          try {
+          if (signal.base64Wav && typeof Audio !== 'undefined') {
             const audio = new Audio(signal.base64Wav);
             audio.volume = 1.0;
             this.currentAudio = audio;
@@ -118,17 +96,51 @@ export class AcousticPlayer {
               clearTimeout(safetyTimer);
               finish();
             };
-            audio.play().catch(finish);
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(finish);
+            }
             return;
-          } catch (e) {
-            clearTimeout(safetyTimer);
-            finish();
           }
-        } else {
-          clearTimeout(safetyTimer);
-          finish();
+        } catch (err) {
+          console.warn('Web Audio playback error:', err);
         }
       }
+
+      // 2. Native Expo AV (Primary for Expo Go mobile app on Android/iOS if native module is present)
+      if (signal.base64Wav) {
+        try {
+          const { NativeModules } = require('react-native');
+          const hasNativeAV = NativeModules && (NativeModules.ExponentAV || NativeModules.ExpoAV || NativeModules.ExponentAudio);
+          if (hasNativeAV) {
+            const { Audio: ExpoAudio } = require('expo-av');
+            await ExpoAudio.setAudioModeAsync({
+              playsInSilentModeIOS: true,
+              staysActiveInBackground: false,
+              shouldRouteThroughEarpiece: false,
+            });
+
+            const { sound } = await ExpoAudio.Sound.createAsync(
+              { uri: signal.base64Wav },
+              { shouldPlay: true, volume: 1.0 }
+            );
+
+            sound.setOnPlaybackStatusUpdate((status: any) => {
+              if (status.isLoaded && status.didJustFinish) {
+                sound.unloadAsync().catch(() => {});
+                clearTimeout(safetyTimer);
+                finish();
+              }
+            });
+            return;
+          }
+        } catch (e) {
+          // Fall through cleanly
+        }
+      }
+
+      clearTimeout(safetyTimer);
+      finish();
     });
   }
 

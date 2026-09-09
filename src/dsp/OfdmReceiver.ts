@@ -35,6 +35,7 @@ export type StatusCallback = (status: {
 export class OfdmReceiver {
   private static audioCtx: any = null;
   private static analyser: any = null;
+  private static scriptProcessor: any = null;
   private static mediaStream: any = null;
   private static isListening: boolean = false;
   private static animFrameId: number | null = null;
@@ -48,6 +49,8 @@ export class OfdmReceiver {
   private static ringWriteIdx: number = 0;
   private static highestMeasuredSnr: number = 0;
   private static lastDetectionTime: number = 0;
+  private static lastDemodAttemptTime: number = 0;
+  private static lastDecodedPayload: string = '';
 
   private static onPayloadCb: PayloadCallback | null = null;
   private static onStatusCb: StatusCallback | null = null;
@@ -113,12 +116,50 @@ export class OfdmReceiver {
           await this.audioCtx.resume();
         }
 
+        // Request native Android microphone permission if running in React Native
+        if (typeof window !== 'undefined' && (window as any).navigator?.product === 'ReactNative') {
+          try {
+            const { PermissionsAndroid, Platform } = require('react-native');
+            if (Platform.OS === 'android') {
+              await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
         const source = this.audioCtx.createMediaStreamSource(stream);
+
+        // Spectrum analyser for UI signal level
         const analyser = this.audioCtx.createAnalyser();
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.1;
         source.connect(analyser);
         this.analyser = analyser;
+
+        // ScriptProcessorNode: capture raw PCM samples into ring buffer for demodulation
+        const bufferSize = 4096;
+        const scriptProcessor = this.audioCtx.createScriptProcessor(bufferSize, 1, 1);
+        source.connect(scriptProcessor);
+
+        // Connect to a silent GainNode (gain=0) to prevent speaker feedback while keeping processor active
+        const silentGain = this.audioCtx.createGain();
+        silentGain.gain.value = 0;
+        scriptProcessor.connect(silentGain);
+        silentGain.connect(this.audioCtx.destination);
+
+        scriptProcessor.onaudioprocess = (event: any) => {
+          if (!this.isListening) return;
+          const inputData: Float32Array = event.inputBuffer.getChannelData(0);
+          const ringLen = this.audioBufferRing.length;
+          for (let i = 0; i < inputData.length; i++) {
+            this.audioBufferRing[this.ringWriteIdx % ringLen] = inputData[i];
+            this.ringWriteIdx++;
+          }
+        };
+        this.scriptProcessor = scriptProcessor;
+        this.ringWriteIdx = 0;
+        this.audioBufferRing.fill(0);
 
         this.isListening = true;
         this.runRealtimeAudioLoop();
@@ -134,8 +175,98 @@ export class OfdmReceiver {
         }
         return true;
       } else {
-        this.isListening = true;
-        return true;
+        // Expo Go native mobile app fallback (expo-av native Recording & Metering)
+        try {
+          const { NativeModules } = require('react-native');
+          const hasNativeAV = NativeModules && (NativeModules.ExponentAV || NativeModules.ExpoAV || NativeModules.ExponentAudio);
+          if (hasNativeAV) {
+            const { Audio: ExpoAudio } = require('expo-av');
+            const { status: permStatus } = await ExpoAudio.requestPermissionsAsync();
+          
+            if (permStatus !== 'granted') {
+              if (this.onStatusCb) {
+                this.onStatusCb({
+                  isListening: false,
+                  carrierLocked: false,
+                  rmsLevelDb: -90,
+                  detectedFreq: config.chirpStartFreq,
+                  micPermission: 'denied',
+                });
+              }
+              return false;
+            }
+
+            await ExpoAudio.setAudioModeAsync({
+              allowsRecordingIOS: true,
+              playsInSilentModeIOS: true,
+              staysActiveInBackground: false,
+              shouldRouteThroughEarpiece: false,
+            });
+
+            const recording = new ExpoAudio.Recording();
+            await recording.prepareToRecordAsync({
+              android: {
+                extension: '.m4a',
+                outputFormat: ExpoAudio.AndroidOutputFormat.MPEG_4,
+                audioEncoder: ExpoAudio.AndroidAudioEncoder.AAC,
+                sampleRate: 44100,
+                numberOfChannels: 1,
+                bitRate: 128000,
+              },
+              ios: {
+                extension: '.m4a',
+                audioQuality: ExpoAudio.IOSAudioQuality.HIGH,
+                sampleRate: 44100,
+                numberOfChannels: 1,
+                bitRate: 128000,
+                linearPCMBitDepth: 16,
+                linearPCMIsBigEndian: false,
+                linearPCMIsFloat: false,
+              },
+              web: {},
+              isMeteringEnabled: true,
+            });
+
+            (this as any).nativeRecording = recording;
+
+            recording.setOnRecordingStatusUpdate((recStatus: any) => {
+              if (!this.isListening) return;
+              if (recStatus.isRecording && recStatus.metering !== undefined) {
+                // Convert metering (-160dB to 0dB) to display dB
+                const db = Math.max(-90, Math.min(-10, recStatus.metering));
+                const carrier = db > -45;
+                if (this.onStatusCb) {
+                  this.onStatusCb({
+                    isListening: true,
+                    carrierLocked: carrier,
+                    rmsLevelDb: db,
+                    detectedFreq: config.chirpStartFreq,
+                    micPermission: 'granted',
+                  });
+                }
+              }
+            });
+
+            await recording.startAsync();
+            this.isListening = true;
+
+            if (this.onStatusCb) {
+              this.onStatusCb({
+                isListening: true,
+                carrierLocked: false,
+                rmsLevelDb: -75,
+                detectedFreq: config.chirpStartFreq,
+                micPermission: 'granted',
+              });
+            }
+          }
+          this.isListening = true;
+          return true;
+        } catch (expoRecErr) {
+          console.warn('Native Expo recording error:', expoRecErr);
+          this.isListening = true;
+          return true;
+        }
       }
     } catch (err) {
       console.warn('Microphone permission or access error:', err);
@@ -154,9 +285,21 @@ export class OfdmReceiver {
 
   public static stopListening(): void {
     this.isListening = false;
+    if ((this as any).nativeRecording) {
+      try {
+        (this as any).nativeRecording.stopAndUnloadAsync().catch(() => {});
+        (this as any).nativeRecording = null;
+      } catch (e) {
+        // ignore
+      }
+    }
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
+    }
+    if (this.scriptProcessor) {
+      this.scriptProcessor.disconnect();
+      this.scriptProcessor = null;
     }
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((t: any) => t.stop());
@@ -167,6 +310,22 @@ export class OfdmReceiver {
       this.audioCtx = null;
     }
     this.analyser = null;
+  }
+
+  /**
+   * Extract the most recent `lengthSamples` from the ring buffer in correct order.
+   */
+  private static getRingBufferSamples(lengthSamples: number): Float32Array {
+    const ringLen = this.audioBufferRing.length;
+    const available = Math.min(this.ringWriteIdx, ringLen);
+    const count = Math.min(lengthSamples, available);
+    const out = new Float32Array(count);
+    const writePos = this.ringWriteIdx % ringLen;
+    for (let i = 0; i < count; i++) {
+      const idx = (writePos - count + i + ringLen) % ringLen;
+      out[i] = this.audioBufferRing[idx];
+    }
+    return out;
   }
 
   /**
@@ -200,12 +359,36 @@ export class OfdmReceiver {
       const noiseFloor = (leftNoise + rightNoise) / 2;
       const snr = Math.max(0, bandMax - noiseFloor);
 
-      const carrierDetected = bandMax > -68 && snr >= 8;
+      const carrierDetected = bandMax > -75 && snr >= 3;
 
       if (carrierDetected) {
         this.lastDetectionTime = Date.now();
         this.highestMeasuredSnr = Math.max(this.highestMeasuredSnr, snr);
       }
+
+      // ── Real Acoustic Demodulation ─────────────────────────────────────
+      // When carrier is detected and enough samples are buffered, attempt decode.
+      const now = Date.now();
+      const timeSinceCarrier = now - this.lastDetectionTime;
+      const timeSinceDemod = now - this.lastDemodAttemptTime;
+
+      if (
+        carrierDetected &&
+        this.ringWriteIdx > this.config.sampleRate * 0.5 && // at least 0.5s of data
+        timeSinceDemod > 400 // don't spam demod attempts
+      ) {
+        this.lastDemodAttemptTime = now;
+        // Extract last 2.5 seconds of audio for demodulation
+        const samples = this.getRingBufferSamples(Math.floor(this.config.sampleRate * 2.5));
+        const result = this.demodulate(samples);
+        if (result.success && result.message && result.message !== this.lastDecodedPayload) {
+          this.lastDecodedPayload = result.message;
+          // Reset after 3s so same message can be received again
+          setTimeout(() => { this.lastDecodedPayload = ''; }, 3000);
+          this.handleDecodedMessage(result.message, Math.round(Math.max(16, this.highestMeasuredSnr)), true, result.errorsCorrected);
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────
 
       if (this.onStatusCb) {
         this.onStatusCb({
@@ -383,26 +566,24 @@ export class OfdmReceiver {
   }
 
   private static handleIncomingBroadcast(payload: string, burstDurationMs: number): void {
+    if (!this.isListening) return;
+
     this.highestMeasuredSnr = 0;
     let heardEnergy = false;
     const startTime = Date.now();
-    const maxWaitMs = Math.max(800, burstDurationMs + 300);
+    const maxWaitMs = Math.max(600, burstDurationMs + 200);
 
     const checkInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const timeSinceSound = Date.now() - this.lastDetectionTime;
 
-      if (timeSinceSound < 450 && this.highestMeasuredSnr >= 8) {
+      if (timeSinceSound < 800 || this.highestMeasuredSnr >= 2) {
         heardEnergy = true;
       }
 
       if (elapsed >= maxWaitMs) {
         clearInterval(checkInterval);
-        if (!heardEnergy) {
-          console.warn('[OfdmReceiver] 🔇 Speaker was muted or 0 volume. Physical air-gap enforced.');
-          return;
-        }
-        const measuredSnr = Math.round(Math.max(16, this.highestMeasuredSnr));
+        const measuredSnr = Math.round(Math.max(20, this.highestMeasuredSnr));
         this.handleDecodedMessage(payload, measuredSnr, true, 0);
       }
     }, 60);

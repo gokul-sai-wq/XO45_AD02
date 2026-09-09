@@ -6,6 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Modal,
+  Alert,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -13,11 +16,12 @@ import { Theme } from '../theme';
 import {
   OfdmModulator,
   DEFAULT_OFDM_CONFIG,
-  AUDIBLE_OFDM_CONFIG,
 } from '../dsp/OfdmModulator';
 import { OfdmReceiver } from '../dsp/OfdmReceiver';
 import { AcousticPlayer } from '../dsp/AcousticPlayer';
+import { AcousticCrypto } from '../dsp/AcousticCrypto';
 import { HistoryStore } from '../dsp/HistoryStore';
+import { AcousticQrCode } from '../components/AcousticQrCode';
 
 interface ConfirmedDevice {
   id: string;
@@ -27,18 +31,25 @@ interface ConfirmedDevice {
 }
 
 export const SenderScreen: React.FC = () => {
-  const [text, setText] = useState('https://exam.hall.local/paper-b');
+  const [text, setText] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [frequencyMode, setFrequencyMode] = useState<'ultrasonic' | 'audible'>('ultrasonic');
   const [burstCount, setBurstCount] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const isBroadcastingRef = useRef(false);
+  // Confidential Mode & Passkey state
+  const [isConfidential, setIsConfidential] = useState(false);
+  const [passkey, setPasskey] = useState('');
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [copiedQr, setCopiedQr] = useState(false);
 
+  const isBroadcastingRef = useRef(false);
+  const isMountedRef = useRef(true);
   const [confirmedDevices, setConfirmedDevices] = useState<ConfirmedDevice[]>([]);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       isBroadcastingRef.current = false;
       AcousticPlayer.stop();
     };
@@ -48,7 +59,7 @@ export const SenderScreen: React.FC = () => {
     // If already broadcasting, stop immediately!
     if (isBroadcastingRef.current) {
       isBroadcastingRef.current = false;
-      setIsBroadcasting(false);
+      if (isMountedRef.current) setIsBroadcasting(false);
       AcousticPlayer.stop();
       return;
     }
@@ -58,21 +69,22 @@ export const SenderScreen: React.FC = () => {
     isBroadcastingRef.current = true;
     setIsBroadcasting(true);
 
-    const config =
-      frequencyMode === 'ultrasonic'
-        ? DEFAULT_OFDM_CONFIG
-        : AUDIBLE_OFDM_CONFIG;
-
     try {
-      const modulator = new OfdmModulator(config);
-      const signal = modulator.synthesize(text.trim());
+      let payloadToSend = text.trim();
+      if (isConfidential) {
+        const encryptedData = AcousticCrypto.encrypt(text.trim(), passkey.trim());
+        payloadToSend = `CONF:${passkey.trim()}:${encryptedData}`;
+      }
+
+      const modulator = new OfdmModulator(DEFAULT_OFDM_CONFIG);
+      const signal = modulator.synthesize(payloadToSend);
       const durationMs = Math.round(signal.durationSec * 1000);
 
       // Log transmission into HistoryStore
       HistoryStore.addRecord({
         type: 'sent',
-        payload: text.trim(),
-        frequencyBand: frequencyMode === 'ultrasonic' ? 'OFDM Ultrasonic (18.5-21.5 kHz)' : 'OFDM Audible (2.0-5.0 kHz)',
+        payload: isConfidential ? `🔒 [Confidential - Passkey] ${text.trim()}` : text.trim(),
+        frequencyBand: '17.0 – 20.4 kHz',
         crcHex: '0x88402',
         crcValid: true,
         ackStatus: 'confirmed',
@@ -82,14 +94,16 @@ export const SenderScreen: React.FC = () => {
       // CONTINUOUS LOOP: produce sound wave until sender stops!
       while (isBroadcastingRef.current) {
         // 1. Broadcast acoustic notice locally to receivers
-        OfdmReceiver.broadcastLocally(text.trim(), durationMs);
+        OfdmReceiver.broadcastLocally(payloadToSend, durationMs);
 
         // 2. Play acoustic burst through speaker
         await AcousticPlayer.playSignal(signal);
 
         if (!isBroadcastingRef.current) break;
 
-        setBurstCount((prev) => prev + 1);
+        if (isMountedRef.current) {
+          setBurstCount((prev) => prev + 1);
+        }
 
         // Small inter-burst guard gap delay (150ms)
         await new Promise((resolve) => setTimeout(resolve, 150));
@@ -98,7 +112,9 @@ export const SenderScreen: React.FC = () => {
       console.error('Continuous OFDM Broadcast error:', err);
     } finally {
       isBroadcastingRef.current = false;
-      setIsBroadcasting(false);
+      if (isMountedRef.current) {
+        setIsBroadcasting(false);
+      }
     }
   };
 
@@ -113,50 +129,181 @@ export const SenderScreen: React.FC = () => {
     }
   };
 
+  // QR Code payload string containing passkey
+  const qrPasskeyPayload = `ECHOWAVE_PASSKEY|${passkey.trim()}`;
+
+  const handleCopyQrString = async () => {
+    try {
+      if (Clipboard && Clipboard.setStringAsync) {
+        await Clipboard.setStringAsync(qrPasskeyPayload);
+      }
+      setCopiedQr(true);
+      setTimeout(() => setCopiedQr(false), 2000);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleToggleConfidential = () => {
+    if (isConfidential) {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.confirm) {
+          const confirmed = window.confirm(
+            '🛡️ Turn Off Confidential Mode?\n\nDisabling Confidential Mode will expose your acoustic broadcasts without passkey encryption. Are you sure you want to turn off Confidential Mode?'
+          );
+          if (confirmed) {
+            setIsConfidential(false);
+            if (isBroadcastingRef.current) {
+              isBroadcastingRef.current = false;
+              setIsBroadcasting(false);
+              AcousticPlayer.stop();
+            }
+          }
+        } else {
+          setIsConfidential(false);
+        }
+      } else {
+        Alert.alert(
+          '🛡️ Turn Off Confidential Mode?',
+          'Disabling Confidential Mode will expose your acoustic broadcasts without passkey encryption. Are you sure you want to turn off Confidential Mode?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Turn Off',
+              style: 'destructive',
+              onPress: () => {
+                setIsConfidential(false);
+                if (isBroadcastingRef.current) {
+                  isBroadcastingRef.current = false;
+                  setIsBroadcasting(false);
+                  AcousticPlayer.stop();
+                }
+              },
+            },
+          ]
+        );
+      }
+    } else {
+      setIsConfidential(true);
+    }
+  };
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, isConfidential && styles.darkContainer]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Top Header Banner matching Reference Screenshot */}
-      <View style={styles.topHeaderBanner}>
-        <View style={styles.headerIconCircle}>
-          <Feather name="send" size={20} color="#FFFFFF" />
+      {/* Top Header Banner - Theme shifts when Confidential Mode is ON */}
+      <View style={[styles.topHeaderBanner, isConfidential && styles.darkHeaderBanner]}>
+        <View style={[styles.headerIconCircle, isConfidential && styles.darkHeaderIconCircle]}>
+          <Feather name={isConfidential ? "shield" : "send"} size={20} color="#FFFFFF" />
         </View>
         <View style={styles.headerTextCol}>
-          <Text style={styles.headerTitle}>Send Message</Text>
-          <Text style={styles.headerSubtitle}>
-            Broadcast your message to multiple devices using sound.
+          <Text style={[styles.headerTitle, isConfidential && styles.darkTextMain]}>
+            {isConfidential ? "Confidential Broadcast Station" : "Send Message"}
+          </Text>
+          <Text style={[styles.headerSubtitle, isConfidential && styles.darkTextSub]}>
+            {isConfidential
+              ? "All air-gap sound broadcasts encrypted with secret passkey."
+              : "Broadcast your message to multiple devices using sound."}
           </Text>
         </View>
       </View>
 
+      {/* 🔒 Confidential Mode Toggle Bar & Card */}
+      <View style={[styles.confidentialCard, isConfidential && styles.darkConfidentialCard]}>
+        <View style={styles.confidentialHeader}>
+          <View style={styles.confidentialTitleGroup}>
+            <Feather name="shield" size={18} color={isConfidential ? "#10B981" : "#64748B"} />
+            <Text style={[styles.confidentialTitle, isConfidential && styles.darkTextMain]}>
+              Confidential Mode
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.toggleSwitch, isConfidential && styles.toggleSwitchActive]}
+            onPress={handleToggleConfidential}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.toggleThumb, isConfidential && styles.toggleThumbActive]} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.confidentialSub, isConfidential && styles.darkTextSub]}>
+          {isConfidential
+            ? "Page in Confidential Mode. Sound waves are encrypted with your secret passkey."
+            : "Toggle ON to encrypt your acoustic sound wave broadcasts."}
+        </Text>
+
+        {isConfidential && (
+          <View style={styles.passkeySection}>
+            <Text style={styles.passkeyLabel}>Secret Passkey:</Text>
+            <View style={styles.passkeyInputRow}>
+              <Feather name="key" size={16} color="#10B981" />
+              <TextInput
+                style={styles.passkeyInput}
+                value={passkey}
+                onChangeText={setPasskey}
+                placeholder="Set passkey..."
+                placeholderTextColor="#64748B"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.qrPasskeyBtn}
+              onPress={() => setShowQrModal(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="qrcode" size={18} color="#FFFFFF" />
+              <Text style={styles.qrPasskeyBtnText}>Show Passkey QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       {/* Message Input Section */}
       <View style={styles.fieldSection}>
-        <Text style={styles.fieldLabel}>Message</Text>
-        <View style={styles.inputCard}>
+        <Text style={[styles.fieldLabel, isConfidential && styles.darkTextMain]}>Message</Text>
+        <View style={[styles.inputCard, isConfidential && styles.darkInputCard]}>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, isConfidential && styles.darkTextInput]}
             value={text}
             onChangeText={setText}
             placeholder="Enter your message here..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={isConfidential ? "#64748B" : "#94A3B8"}
             multiline
             maxLength={200}
           />
-          <Text style={styles.charCounter}>{text.length}/200</Text>
+          <Text style={[styles.charCounter, isConfidential && styles.darkTextSub]}>
+            {text.length}/200
+          </Text>
         </View>
       </View>
 
-      {/* Expected Receiver Count Badge matching Reference Screenshot */}
-      <View style={styles.fieldSection}>
-        <Text style={styles.fieldLabel}>Receiver Count (Expected)</Text>
-        <View style={styles.receiverChip}>
-          <Feather name="users" size={15} color="#334155" />
-          <Text style={styles.receiverChipText}>~ 10 devices</Text>
-        </View>
-      </View>
+      {/* Main Broadcast Trigger Button */}
+      <TouchableOpacity
+        style={[
+          styles.broadcastButton,
+          isConfidential && styles.darkBroadcastButton,
+          isBroadcasting && styles.broadcastButtonActive,
+        ]}
+        onPress={handleBroadcast}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons
+          name={isBroadcasting ? 'stop-circle-outline' : 'signal-cellular-3'}
+          size={22}
+          color="#FFFFFF"
+        />
+        <Text style={styles.broadcastButtonText}>
+          {isBroadcasting
+            ? 'Stop Broadcasting'
+            : isConfidential
+            ? 'Broadcast Encrypted Sound Wave'
+            : 'Broadcast Sound Wave'}
+        </Text>
+      </TouchableOpacity>
 
       {/* Advanced Options Accordion */}
       <TouchableOpacity
@@ -164,25 +311,28 @@ export const SenderScreen: React.FC = () => {
         onPress={() => setShowAdvanced(!showAdvanced)}
         activeOpacity={0.7}
       >
-        <Text style={styles.advancedTitle}>Advanced Options</Text>
+        <Text style={[styles.advancedTitle, isConfidential && styles.darkTextMain]}>
+          Advanced Options
+        </Text>
         <Feather
           name={showAdvanced ? 'chevron-down' : 'chevron-right'}
           size={18}
-          color="#64748B"
+          color={isConfidential ? "#94A3B8" : "#64748B"}
         />
       </TouchableOpacity>
 
       {showAdvanced && (
-        <View style={styles.advancedBody}>
-          {/* Quick Presets */}
-          <Text style={styles.subLabel}>Quick Presets & Utilities</Text>
+        <View style={[styles.advancedBody, isConfidential && styles.darkAdvancedBody]}>
+          <Text style={[styles.subLabel, isConfidential && styles.darkTextSub]}>
+            Quick Presets & Utilities
+          </Text>
           <View style={styles.presetsRow}>
             <TouchableOpacity
               style={styles.presetChip}
-              onPress={() => setText('https://exam.hall.local/paper-b')}
+              onPress={() => setText('https://echowave.app/broadcast')}
               activeOpacity={0.7}
             >
-              <Text style={styles.presetChipText}>Exam Link</Text>
+              <Text style={styles.presetChipText}>Web Link</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -209,93 +359,64 @@ export const SenderScreen: React.FC = () => {
               <Feather name="trash-2" size={14} color="#EF4444" />
             </TouchableOpacity>
           </View>
-
-          {/* Acoustic Frequency Band Selector */}
-          <Text style={[styles.subLabel, { marginTop: 14 }]}>Acoustic Frequency Band</Text>
-          <View style={styles.freqModeToggle}>
-            <TouchableOpacity
-              style={[
-                styles.freqModeBtn,
-                frequencyMode === 'ultrasonic' && styles.freqModeBtnActive,
-              ]}
-              onPress={() => setFrequencyMode('ultrasonic')}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.freqModeBtnText,
-                  frequencyMode === 'ultrasonic' && styles.freqModeBtnTextActive,
-                ]}
-              >
-                Inaudible (18.5 kHz)
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.freqModeBtn,
-                frequencyMode === 'audible' && styles.freqModeBtnActive,
-              ]}
-              onPress={() => setFrequencyMode('audible')}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.freqModeBtnText,
-                  frequencyMode === 'audible' && styles.freqModeBtnTextActive,
-                ]}
-              >
-                Audible Test (2.2 kHz)
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Confirmed Receivers List (PS02 Slotted ACK) */}
-          <Text style={[styles.subLabel, { marginTop: 16 }]}>
-            Confirmed Receivers ({confirmedDevices.length})
-          </Text>
-          <View style={styles.devicesList}>
-            {confirmedDevices.map((device) => (
-              <View key={device.id} style={styles.deviceRow}>
-                <View style={styles.deviceInfo}>
-                  <MaterialCommunityIcons name="cellphone" size={16} color="#2563EB" />
-                  <Text style={styles.deviceName}>{device.name}</Text>
-                </View>
-                <View style={styles.confirmedBadge}>
-                  <Feather name="check" size={12} color="#059669" />
-                  <Text style={styles.confirmedBadgeText}>ACK</Text>
-                </View>
-              </View>
-            ))}
-          </View>
         </View>
       )}
 
-      {/* Main Broadcast Trigger Button */}
-      <TouchableOpacity
-        style={[styles.broadcastButton, isBroadcasting && styles.broadcastButtonActive]}
-        onPress={handleBroadcast}
-        activeOpacity={0.85}
+      {/* 📱 Sender Passkey QR Code Modal */}
+      <Modal
+        visible={showQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQrModal(false)}
       >
-        <MaterialCommunityIcons
-          name={isBroadcasting ? 'stop-circle-outline' : 'signal-cellular-3'}
-          size={22}
-          color="#FFFFFF"
-        />
-        <Text style={styles.broadcastButtonText}>
-          {isBroadcasting ? 'Stop Broadcasting' : 'Broadcast'}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.modalOverlay}>
+          <View style={styles.qrModalCard}>
+            <View style={styles.qrModalHeader}>
+              <View style={styles.qrTitleRow}>
+                <MaterialCommunityIcons name="qrcode-scan" size={22} color="#10B981" />
+                <Text style={styles.qrModalTitle}>Passkey QR Code</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowQrModal(false)} activeOpacity={0.7}>
+                <Feather name="x" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
 
-      {/* Info Banner at Bottom matching Reference Screenshot */}
-      <View style={styles.infoBanner}>
-        <View style={styles.infoIconCircle}>
-          <Feather name="info" size={16} color="#2563EB" />
+            <Text style={styles.qrModalSub}>
+              Scan this QR code from the Receiver app to automatically load the secret decryption passkey.
+            </Text>
+
+            {/* QR Code Container */}
+            <View style={styles.qrBox}>
+              <AcousticQrCode value={qrPasskeyPayload} size={180} color="#0F172A" />
+            </View>
+
+            {/* Passkey Badge */}
+            <View style={styles.qrMetaChip}>
+              <Feather name="key" size={14} color="#047857" />
+              <Text style={styles.qrMetaChipText}>Passkey: {passkey}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.copyQrBtn}
+              onPress={handleCopyQrString}
+              activeOpacity={0.8}
+            >
+              <Feather name={copiedQr ? 'check' : 'copy'} size={15} color="#FFFFFF" />
+              <Text style={styles.copyQrBtnText}>
+                {copiedQr ? 'Copied Passkey QR String!' : 'Copy Passkey QR String'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.closeQrBtn}
+              onPress={() => setShowQrModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.closeQrBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={styles.infoBannerText}>
-          Make sure all receiver devices are open and within range for better results.
-        </Text>
-      </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -304,6 +425,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAF8FF',
+  },
+  darkContainer: {
+    backgroundColor: '#090D16',
   },
   content: {
     padding: 18,
@@ -319,6 +443,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
+  darkHeaderBanner: {
+    backgroundColor: '#1E293B',
+    borderColor: '#334155',
+  },
   headerIconCircle: {
     width: 46,
     height: 46,
@@ -327,11 +455,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
+  },
+  darkHeaderIconCircle: {
+    backgroundColor: '#059669',
   },
   headerTextCol: {
     flex: 1,
@@ -346,6 +472,110 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     lineHeight: 17,
+  },
+  darkTextMain: {
+    color: '#F8FAFC',
+  },
+  darkTextSub: {
+    color: '#94A3B8',
+  },
+  confidentialCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 20,
+  },
+  darkConfidentialCard: {
+    backgroundColor: '#0F172A',
+    borderColor: '#059669',
+  },
+  confidentialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  confidentialTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confidentialTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  confidentialSub: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#CBD5E1',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#10B981',
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  passkeySection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+  },
+  passkeyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#34D399',
+    marginBottom: 6,
+  },
+  passkeyInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#059669',
+    paddingHorizontal: 12,
+    height: 42,
+    marginBottom: 12,
+    gap: 8,
+  },
+  passkeyInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  qrPasskeyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingVertical: 11,
+  },
+  qrPasskeyBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   fieldSection: {
     marginBottom: 20,
@@ -363,12 +593,19 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     padding: 14,
   },
+  darkInputCard: {
+    backgroundColor: '#0F172A',
+    borderColor: '#334155',
+  },
   textInput: {
     minHeight: 84,
     fontSize: 14,
     color: '#1E293B',
     textAlignVertical: 'top',
     padding: 0,
+  },
+  darkTextInput: {
+    color: '#F8FAFC',
   },
   charCounter: {
     fontSize: 11,
@@ -377,22 +614,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  receiverChip: {
+  broadcastButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#0066FF',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignSelf: 'flex-start',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 20,
   },
-  receiverChipText: {
-    fontSize: 13,
+  darkBroadcastButton: {
+    backgroundColor: '#059669',
+  },
+  broadcastButtonActive: {
+    backgroundColor: '#DC2626',
+  },
+  broadcastButtonText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#FFFFFF',
   },
   advancedHeader: {
     flexDirection: 'row',
@@ -415,6 +656,10 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     padding: 14,
     marginBottom: 20,
+  },
+  darkAdvancedBody: {
+    backgroundColor: '#0F172A',
+    borderColor: '#334155',
   },
   subLabel: {
     fontSize: 12,
@@ -451,122 +696,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  freqModeToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    padding: 3,
-  },
-  freqModeBtn: {
+  modalOverlay: {
     flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
-    borderRadius: 8,
+    alignItems: 'center',
+    padding: 20,
   },
-  freqModeBtnActive: {
+  qrModalCard: {
+    width: '100%',
+    maxWidth: 340,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
   },
-  freqModeBtnText: {
+  qrModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  qrTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  qrModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  qrModalSub: {
     fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
-  },
-  freqModeBtnTextActive: {
-    color: '#2563EB',
-    fontWeight: '600',
-  },
-  devicesList: {
-    gap: 8,
-  },
-  deviceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  deviceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  deviceName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#334155',
-  },
-  confirmedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  confirmedBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  broadcastButton: {
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#0066FF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#0066FF',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    textAlign: 'center',
+    lineHeight: 17,
     marginBottom: 16,
   },
-  broadcastButtonActive: {
-    backgroundColor: '#DC2626',
-    shadowColor: '#DC2626',
-  },
-  broadcastButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    gap: 12,
-  },
-  infoIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#DBEAFE',
+  qrBox: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
   },
-  infoBannerText: {
-    flex: 1,
+  qrMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 16,
+  },
+  qrMetaChipText: {
     fontSize: 12,
-    color: '#2563EB',
-    lineHeight: 17,
-    fontWeight: '500',
+    fontWeight: '700',
+    color: '#047857',
+  },
+  copyQrBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    height: 44,
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  copyQrBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  closeQrBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  closeQrBtnText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
   },
 });
 

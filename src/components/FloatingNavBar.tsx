@@ -15,7 +15,7 @@ export const FloatingNavBar: React.FC<FloatingNavBarProps> = ({
   onTabChange,
 }) => {
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
+    <View style={styles.wrapper}>
       <View style={styles.floatingCapsule}>
         {/* Send Tab */}
         <TouchableOpacity
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
+    pointerEvents: 'box-none' as any,
   },
   floatingCapsule: {
     flexDirection: 'row',
@@ -88,11 +89,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 8px 18px rgba(15, 23, 42, 0.12)',
+      } as any,
+      default: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 10,
+      },
+    }),
     gap: 6,
   },
   tabItem: {

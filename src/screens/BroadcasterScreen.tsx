@@ -14,6 +14,7 @@ import { Theme } from '../theme';
 import { AcousticTransducer } from '../components/AcousticTransducer';
 import { CarrierSelector, CARRIERS, CarrierOption } from '../components/CarrierSelector';
 import { ConfirmedReceiversList, ReceiverNode } from '../components/ConfirmedReceiversList';
+import { AcousticPlayer } from '../dsp/AcousticPlayer';
 
 const INITIAL_RECEIVERS: ReceiverNode[] = [
   {
@@ -46,7 +47,7 @@ const INITIAL_RECEIVERS: ReceiverNode[] = [
 ];
 
 export const BroadcasterScreen: React.FC = () => {
-  const [payload, setPayload] = useState('https://exam.hall.local/session/hall-402-paper-b');
+  const [payload, setPayload] = useState('');
   const [selectedCarrier, setSelectedCarrier] = useState<CarrierOption>(CARRIERS[0]);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [receivers, setReceivers] = useState<ReceiverNode[]>(INITIAL_RECEIVERS);
@@ -87,11 +88,11 @@ export const BroadcasterScreen: React.FC = () => {
 
   const setPreset = (type: 'exam' | 'wifi' | 'notice') => {
     if (type === 'exam') {
-      setPayload('https://exam.hall.local/session/hall-402-paper-b');
+      setPayload('https://echowave.app/broadcast');
     } else if (type === 'wifi') {
-      setPayload('WIFI:S:ExamSecureNet;T:WPA;P:SonicShield2026;;');
+      setPayload('WIFI:S:EchoWaveNet;T:WPA;P:SecretKey2026;;');
     } else {
-      setPayload('NOTICE: 15 minutes remaining. Please submit booklets to invigilator.');
+      setPayload('NOTICE: Broadcast session in progress.');
     }
   };
 

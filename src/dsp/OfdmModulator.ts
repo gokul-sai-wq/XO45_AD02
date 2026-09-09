@@ -25,26 +25,71 @@ export const DEFAULT_OFDM_CONFIG: ModemConfig = {
   fftSize: 1024,
   cpSize: 512,
   numCarriers: 48,
-  startCarrierBin: 395,
-  chirpStartFreq: 18000,
-  chirpEndFreq: 21500,
+  startCarrierBin: 368,      // ~17,250 Hz at 48kHz
+  chirpStartFreq: 17000,
+  chirpEndFreq: 19800,
   chirpSize: 1024,
   guardSize: 256,
   rsParitySymbols: 16,
 };
 
-export const AUDIBLE_OFDM_CONFIG: ModemConfig = {
-  sampleRate: 48000,
-  fftSize: 1024,
-  cpSize: 512,
-  numCarriers: 48,
-  startCarrierBin: 48,       // ~2,250 Hz
-  chirpStartFreq: 2000,
-  chirpEndFreq: 5000,
-  chirpSize: 1024,
-  guardSize: 256,
-  rsParitySymbols: 16,
-};
+export interface AcousticChannel {
+  id: string;
+  name: string;
+  frequencyLabel: string;
+  chirpStartFreq: number;
+  chirpEndFreq: number;
+  startCarrierBin: number;
+  description: string;
+}
+
+export const ACOUSTIC_FREQUENCY_CHANNELS: AcousticChannel[] = [
+  {
+    id: 'chan_1',
+    name: 'Channel 1 (Standard)',
+    frequencyLabel: '17.0 – 18.2 kHz',
+    chirpStartFreq: 17000,
+    chirpEndFreq: 18200,
+    startCarrierBin: 363,
+    description: 'Standard confidential frequency channel',
+  },
+  {
+    id: 'chan_2',
+    name: 'Channel 2 (Alpha Band)',
+    frequencyLabel: '17.8 – 19.0 kHz',
+    chirpStartFreq: 17800,
+    chirpEndFreq: 19000,
+    startCarrierBin: 380,
+    description: 'Alpha stealth frequency channel',
+  },
+  {
+    id: 'chan_3',
+    name: 'Channel 3 (Secure Shield)',
+    frequencyLabel: '18.6 – 19.8 kHz',
+    chirpStartFreq: 18600,
+    chirpEndFreq: 19800,
+    startCarrierBin: 397,
+    description: 'High-security acoustic shield channel',
+  },
+  {
+    id: 'chan_4',
+    name: 'Channel 4 (Ultra Stealth)',
+    frequencyLabel: '19.2 – 20.4 kHz',
+    chirpStartFreq: 19200,
+    chirpEndFreq: 20400,
+    startCarrierBin: 410,
+    description: 'Ultra stealth high-frequency channel',
+  },
+];
+
+export function createModemConfigForChannel(channel: AcousticChannel): ModemConfig {
+  return {
+    ...DEFAULT_OFDM_CONFIG,
+    startCarrierBin: channel.startCarrierBin,
+    chirpStartFreq: channel.chirpStartFreq,
+    chirpEndFreq: channel.chirpEndFreq,
+  };
+}
 
 const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 

@@ -2,13 +2,13 @@ import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
-  SafeAreaView,
   StatusBar,
   Platform,
   ScrollView,
   useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Theme } from './src/theme';
@@ -17,12 +17,16 @@ import { FloatingNavBar, TabKey } from './src/components/FloatingNavBar';
 import { SenderScreen } from './src/screens/SenderScreen';
 import { ReceiverScreen } from './src/screens/ReceiverScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
+import { OnboardingModal } from './src/components/OnboardingModal';
+import { HistoryStore } from './src/dsp/HistoryStore';
 
 const TABS: TabKey[] = ['send', 'receive', 'history'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('send');
   const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [userName, setUserName] = useState<string>('');
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
   const scrollRef = useRef<ScrollView>(null);
   const { width: windowWidth } = useWindowDimensions();
 
@@ -52,8 +56,35 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    const doLogout = () => {
+      setUserName('');
+      HistoryStore.clearHistory();
+      setShowOnboarding(true);
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm) {
+        if (window.confirm('🚪 Logout Station?\n\nThis will end your station session, clear active memory, and return to Station Setup.')) {
+          doLogout();
+        }
+      } else {
+        doLogout();
+      }
+    } else {
+      Alert.alert(
+        '🚪 Logout Station',
+        'This will end your station session, clear active memory, and return to Station Setup.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log Out', style: 'destructive', onPress: doLogout },
+        ]
+      );
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ExpoStatusBar style="dark" />
       <View
         style={styles.container}
@@ -65,7 +96,21 @@ export default function App() {
         }}
       >
         {/* Modern Clean Top Header */}
-        <Header stationName="Station 01" />
+        <Header
+          userName={userName}
+          onOpenOnboarding={() => setShowOnboarding(true)}
+          onLogout={handleLogout}
+        />
+
+        {/* New User Onboarding Modal */}
+        <OnboardingModal
+          visible={showOnboarding}
+          initialName={userName}
+          onComplete={(name) => {
+            setUserName(name);
+            setShowOnboarding(false);
+          }}
+        />
 
         {/* Horizontal Swipeable Pager for Send, Receive, History */}
         <View style={styles.pagerWrapper}>
@@ -94,7 +139,7 @@ export default function App() {
         {/* Floating Bottom Pill Navbar */}
         <FloatingNavBar activeTab={activeTab} onTabChange={handleTabChange} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

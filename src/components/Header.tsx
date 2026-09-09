@@ -1,16 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { Theme } from '../theme';
 
 interface HeaderProps {
+  userName?: string;
   stationName?: string;
   isOnline?: boolean;
+  onOpenOnboarding?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  userName = '',
   stationName = 'Station 01',
+  onOpenOnboarding,
+  onLogout,
 }) => {
+  const displayName = userName.trim() ? `${userName.trim()}'s Station` : stationName;
+  const initial = userName.trim() ? userName.trim().charAt(0).toUpperCase() : 'S';
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -20,17 +29,34 @@ export const Header: React.FC<HeaderProps> = ({
             <View style={styles.logoIcon}>
               <MaterialCommunityIcons name="waveform" size={18} color={Theme.colors.primary} />
             </View>
-            <Text style={styles.title}>SoundBridge</Text>
+            <Text style={styles.title}>EchoWave</Text>
           </View>
         </View>
 
-        {/* Right Station Avatar Pill (Matching the 'A' avatar in the reference screenshot) */}
-        <View style={styles.avatarPill}>
-          <View style={styles.greenPulseDot} />
-          <Text style={styles.stationText}>{stationName}</Text>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>S</Text>
-          </View>
+        {/* Right Actions Group: Avatar Pill + Logout Button */}
+        <View style={styles.rightActionsGroup}>
+          <TouchableOpacity
+            style={styles.avatarPill}
+            onPress={onOpenOnboarding}
+            activeOpacity={0.75}
+          >
+            <View style={styles.greenPulseDot} />
+            <Text style={styles.stationText} numberOfLines={1}>{displayName}</Text>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            </View>
+          </TouchableOpacity>
+
+          {onLogout && (
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={onLogout}
+              activeOpacity={0.7}
+              accessibilityLabel="Log out station"
+            >
+              <Feather name="log-out" size={15} color="#EF4444" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -114,5 +140,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: Theme.colors.textPrimary,
+  },
+  rightActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoutBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

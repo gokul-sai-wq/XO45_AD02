@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -43,14 +44,47 @@ export const HistoryScreen: React.FC = () => {
     }
   };
 
+  const handleClearAll = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm) {
+        if (window.confirm('Are you sure you want to delete all transmission records?')) {
+          HistoryStore.clearHistory();
+        }
+      } else {
+        HistoryStore.clearHistory();
+      }
+    } else {
+      Alert.alert(
+        'Clear History',
+        'Are you sure you want to delete all transmission records?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Clear All', style: 'destructive', onPress: () => HistoryStore.clearHistory() },
+        ]
+      );
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Title matching Reference Screenshot */}
-      <Text style={styles.screenTitle}>Message History</Text>
+      {/* Title & Clear All Header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.screenTitle}>Message History</Text>
+        {storeRecords.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearAllBtn}
+            onPress={handleClearAll}
+            activeOpacity={0.7}
+          >
+            <Feather name="trash-2" size={14} color="#EF4444" />
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Segmented Filter Tab (All | Sent | Received) */}
       <View style={styles.segmentContainer}>
@@ -149,11 +183,30 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 110,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   screenTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 16,
+  },
+  clearAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  clearAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   segmentContainer: {
     flexDirection: 'row',

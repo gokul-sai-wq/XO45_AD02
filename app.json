@@ -1,29 +1,39 @@
 {
   "expo": {
-    "name": "SoundBridge",
-    "slug": "soundbridge-acoustic",
+    "name": "EchoWave",
+    "slug": "echowave-acoustic",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "SoundBridge uses the microphone to receive acoustic soundwave broadcasts."
+        "NSMicrophoneUsageDescription": "EchoWave uses the microphone to receive acoustic soundwave broadcasts."
       }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0A0D14"
       },
-      "package": "com.soundbridge.acoustic",
+      "package": "com.echowave.acoustic",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "53e6836b-f87a-4d14-8a45-ee2b8c30fc4b"
+      }
+    },
+    "owner": "gokulsai_26"
   }
 }
