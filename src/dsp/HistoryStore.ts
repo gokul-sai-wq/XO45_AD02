@@ -8,7 +8,7 @@ export interface TransmissionRecord {
   type: 'sent' | 'received';
   payload: string;
   timestamp: string;
-  frequencyBand: 'Audible (2.2 kHz)' | 'Ultrasonic (18.5 kHz)';
+  frequencyBand: string;
   crcHex: string;
   crcValid: boolean;
   ackStatus: 'confirmed' | 'pending';
@@ -18,41 +18,7 @@ export interface TransmissionRecord {
 type Listener = () => void;
 
 class HistoryStoreManager {
-  private records: TransmissionRecord[] = [
-    {
-      id: 'init-1',
-      type: 'received',
-      payload: 'https://exam.hall.local/session-hall-402',
-      timestamp: 'Today, 2:30 PM',
-      frequencyBand: 'Audible (2.2 kHz)',
-      crcHex: '0x9AF2',
-      crcValid: true,
-      ackStatus: 'confirmed',
-      snrDb: 26,
-    },
-    {
-      id: 'init-2',
-      type: 'sent',
-      payload: 'https://exam.hall.local/paper-b',
-      timestamp: 'Today, 1:15 PM',
-      frequencyBand: 'Audible (2.2 kHz)',
-      crcHex: '0x3E1C',
-      crcValid: true,
-      ackStatus: 'confirmed',
-      snrDb: 28,
-    },
-    {
-      id: 'init-3',
-      type: 'sent',
-      payload: 'WIFI:Pass12345',
-      timestamp: 'Yesterday, 4:45 PM',
-      frequencyBand: 'Ultrasonic (18.5 kHz)',
-      crcHex: '0x8B44',
-      crcValid: true,
-      ackStatus: 'confirmed',
-      snrDb: 22,
-    },
-  ];
+  private records: TransmissionRecord[] = [];
 
   private listeners: Listener[] = [];
 

@@ -12,13 +12,13 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Theme } from '../theme';
 import {
-  AcousticReceiver,
+  OfdmReceiver,
   ReceptionMetrics,
-} from '../dsp/AcousticReceiver';
+} from '../dsp/OfdmReceiver';
 import {
-  DEFAULT_ULTRASONIC_CONFIG,
-  DEFAULT_AUDIBLE_CONFIG,
-} from '../dsp/AcousticModulator';
+  DEFAULT_OFDM_CONFIG,
+  AUDIBLE_OFDM_CONFIG,
+} from '../dsp/OfdmModulator';
 import { HistoryStore } from '../dsp/HistoryStore';
 
 export const ReceiverScreen: React.FC = () => {
@@ -34,10 +34,10 @@ export const ReceiverScreen: React.FC = () => {
   useEffect(() => {
     const config =
       listenMode === 'ultrasonic'
-        ? DEFAULT_ULTRASONIC_CONFIG
-        : DEFAULT_AUDIBLE_CONFIG;
+        ? DEFAULT_OFDM_CONFIG
+        : AUDIBLE_OFDM_CONFIG;
 
-    AcousticReceiver.startListening(
+    OfdmReceiver.startListening(
       config,
       (payload, rxMetrics) => {
         setReceivedMessage(payload);
@@ -47,7 +47,7 @@ export const ReceiverScreen: React.FC = () => {
         HistoryStore.addRecord({
           type: 'received',
           payload,
-          frequencyBand: listenMode === 'ultrasonic' ? 'Ultrasonic (18.5 kHz)' : 'Audible (2.2 kHz)',
+          frequencyBand: listenMode === 'ultrasonic' ? 'OFDM Ultrasonic (18.5-21.5 kHz)' : 'OFDM Audible (2.0-5.0 kHz)',
           crcHex: rxMetrics.crcHex,
           crcValid: rxMetrics.crcValid,
           ackStatus: 'confirmed',
@@ -64,7 +64,7 @@ export const ReceiverScreen: React.FC = () => {
     });
 
     return () => {
-      AcousticReceiver.stopListening();
+      OfdmReceiver.stopListening();
     };
   }, [listenMode]);
 
@@ -99,36 +99,18 @@ export const ReceiverScreen: React.FC = () => {
     setMetrics(null);
   };
 
+  // Compute signal quality string & percentage from dB level
+  const signalQualityText = carrierLocked ? 'Excellent' : signalLevelDb > -65 ? 'Good' : 'Searching';
+  const signalWidthPercent = carrierLocked ? '90%' : signalLevelDb > -65 ? '72%' : '35%';
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Live Microphone Status Banner */}
-      <View style={styles.statusBar}>
-        <View style={styles.statusLeft}>
-          <View
-            style={[
-              styles.pulseDot,
-              carrierLocked && styles.pulseDotLocked,
-            ]}
-          />
-          <Text style={styles.statusTitle}>
-            {hasReceived
-              ? 'Broadcast Received & Verified'
-              : carrierLocked
-              ? 'Acoustic Carrier Detected...'
-              : 'Listening for Soundwaves...'}
-          </Text>
-        </View>
-        <Text style={styles.statusBadge}>
-          {listenMode === 'ultrasonic' ? '18.5 kHz' : '2.2 kHz'}
-        </Text>
-      </View>
-
-      {/* Main Received Message Card */}
       {hasReceived ? (
+        /* Decoded Payload View */
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardLabel}>DECODED ACOUSTIC PAYLOAD</Text>
@@ -142,10 +124,10 @@ export const ReceiverScreen: React.FC = () => {
             </Text>
           </View>
 
-          {/* Transmission Verification Grid */}
+          {/* Verification Metrics Grid */}
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>
-              CRC-16: <Text style={styles.metaBold}>{metrics?.crcHex || 'Valid (0x9AF2)'}</Text>
+              CRC-16: <Text style={styles.metaBold}>{metrics?.crcHex || '0x9AF2'}</Text>
             </Text>
             <Text style={styles.metaText}>
               SNR: <Text style={styles.metaBold}>+{metrics?.snr || 24} dB</Text>
@@ -155,10 +137,10 @@ export const ReceiverScreen: React.FC = () => {
             </Text>
           </View>
 
-          {/* Confirmation Banner (PS02 Constraint) */}
+          {/* ACK Confirmation Banner */}
           <View style={styles.ackBanner}>
             <View style={styles.ackLeft}>
-              <Feather name="check-circle" size={16} color={Theme.colors.successText} />
+              <Feather name="check-circle" size={16} color="#059669" />
               <Text style={styles.ackText}>Device Confirmed to Broadcaster</Text>
             </View>
             <Text style={styles.ackSub}>Acoustic ACK sent</Text>
@@ -182,7 +164,7 @@ export const ReceiverScreen: React.FC = () => {
               onPress={handleOpenLink}
               activeOpacity={0.8}
             >
-              <Feather name="external-link" size={16} color={Theme.colors.textPrimary} />
+              <Feather name="external-link" size={16} color="#0F172A" />
               <Text style={styles.btnSecondaryText}>Open</Text>
             </TouchableOpacity>
           </View>
@@ -196,47 +178,83 @@ export const ReceiverScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.waitingCard}>
-          <View style={styles.listeningOrb}>
-            <MaterialCommunityIcons name="ear-hearing" size={32} color={Theme.colors.primary} />
+        /* Listening State matching Reference Screenshot */
+        <View style={styles.listeningContainer}>
+          {/* Concentric Animated Listening Orb */}
+          <View style={styles.orbWrapper}>
+            <View style={styles.outerOrb}>
+              <View style={styles.middleOrb}>
+                <View style={styles.innerOrb}>
+                  <MaterialCommunityIcons name="microphone" size={40} color="#FFFFFF" />
+                </View>
+              </View>
+            </View>
           </View>
-          <Text style={styles.waitingTitle}>Microphone Armed & Ready</Text>
-          <Text style={styles.waitingDesc}>
-            Keep this screen open. When a nearby phone broadcasts using SoundBridge, the message or link will appear here instantly.
+
+          {/* Status Headline */}
+          <Text style={styles.listeningTitle}>
+            {carrierLocked ? 'Receiving Sound Signal...' : 'Listening for messages...'}
+          </Text>
+          <Text style={styles.listeningSubtitle}>
+            Keep your device's microphone on and stay in the app.
           </Text>
 
-          {/* Frequency Toggle */}
-          <View style={styles.modePillContainer}>
+          {/* Signal Strength Card matching Reference Screenshot */}
+          <View style={styles.signalCard}>
+            <View style={styles.signalCardHeader}>
+              <MaterialCommunityIcons name="waveform" size={20} color="#10B981" />
+              <Text style={styles.signalTitle}>Signal Strength</Text>
+            </View>
+            <View style={styles.signalBarRow}>
+              <View style={styles.signalTrack}>
+                <View style={[styles.signalFill, { width: signalWidthPercent as any }]} />
+              </View>
+              <Text style={styles.signalStatusText}>{signalQualityText}</Text>
+            </View>
+          </View>
+
+          {/* Info Banner matching Reference Screenshot */}
+          <View style={styles.infoBanner}>
+            <View style={styles.infoIconCircle}>
+              <Feather name="info" size={16} color="#2563EB" />
+            </View>
+            <Text style={styles.infoBannerText}>
+              Make sure you are in a quiet environment for better reception.
+            </Text>
+          </View>
+
+          {/* Acoustic Frequency Selector */}
+          <View style={styles.freqToggleContainer}>
             <TouchableOpacity
               style={[
-                styles.modePill,
-                listenMode === 'ultrasonic' && styles.modePillActive,
+                styles.freqPill,
+                listenMode === 'ultrasonic' && styles.freqPillActive,
               ]}
               onPress={() => setListenMode('ultrasonic')}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.modePillText,
-                  listenMode === 'ultrasonic' && styles.modePillTextActive,
+                  styles.freqPillText,
+                  listenMode === 'ultrasonic' && styles.freqPillTextActive,
                 ]}
               >
-                Inaudible Ultrasound (18.5 kHz)
+                Inaudible (18.5 kHz)
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
-                styles.modePill,
-                listenMode === 'audible' && styles.modePillActive,
+                styles.freqPill,
+                listenMode === 'audible' && styles.freqPillActive,
               ]}
               onPress={() => setListenMode('audible')}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.modePillText,
-                  listenMode === 'audible' && styles.modePillTextActive,
+                  styles.freqPillText,
+                  listenMode === 'audible' && styles.freqPillTextActive,
                 ]}
               >
                 Audible Test (2.2 kHz)
@@ -245,16 +263,6 @@ export const ReceiverScreen: React.FC = () => {
           </View>
         </View>
       )}
-
-      {/* Instant Demo Simulation Button for Hackathon Judges */}
-      <TouchableOpacity
-        style={styles.testBtn}
-        onPress={() => AcousticReceiver.simulateIncoming('https://exam.hall.local/session-hall-402')}
-        activeOpacity={0.7}
-      >
-        <MaterialCommunityIcons name="broadcast" size={16} color={Theme.colors.textSecondary} />
-        <Text style={styles.testBtnText}>Simulate Test Signal Receive</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -262,122 +270,227 @@ export const ReceiverScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.bg,
+    backgroundColor: '#FAF8FF',
   },
   content: {
-    padding: Theme.spacing.lg,
+    padding: 18,
     paddingBottom: 110,
   },
-  statusBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  listeningContainer: {
     alignItems: 'center',
-    backgroundColor: Theme.colors.bgCard,
-    borderRadius: Theme.radius.md,
-    paddingHorizontal: Theme.spacing.md,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    marginBottom: Theme.spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    marginBottom: 20,
   },
-  statusLeft: {
+  orbWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 24,
+  },
+  outerOrb: {
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  middleOrb: {
+    width: 154,
+    height: 154,
+    borderRadius: 77,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerOrb: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  listeningTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  listeningSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    maxWidth: 280,
+    marginBottom: 26,
+  },
+  signalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 16,
+  },
+  signalCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 12,
   },
-  pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Theme.colors.success,
+  signalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
   },
-  pulseDotLocked: {
-    backgroundColor: Theme.colors.primary,
+  signalBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  statusTitle: {
+  signalTrack: {
+    flex: 1,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
+  },
+  signalFill: {
+    height: '100%',
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+  },
+  signalStatusText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Theme.colors.textPrimary,
+    color: '#10B981',
   },
-  statusBadge: {
+  infoBanner: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    gap: 12,
+    marginBottom: 20,
+  },
+  infoIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#2563EB',
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  freqToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 20,
+    padding: 3,
+  },
+  freqPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 18,
+  },
+  freqPillActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  freqPillText: {
     fontSize: 11,
-    color: Theme.colors.textMuted,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  freqPillTextActive: {
+    color: '#2563EB',
     fontWeight: '600',
   },
   card: {
-    backgroundColor: Theme.colors.bgCard,
-    borderRadius: Theme.radius.lg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
-    padding: Theme.spacing.lg,
-    marginBottom: Theme.spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: '#E2E8F0',
+    padding: 18,
+    marginBottom: 20,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Theme.spacing.md,
+    marginBottom: 12,
   },
   cardLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Theme.colors.textMuted,
+    color: '#64748B',
     letterSpacing: 0.6,
   },
   timeTag: {
     fontSize: 11,
-    color: Theme.colors.textMuted,
+    color: '#94A3B8',
   },
   messageBox: {
-    backgroundColor: Theme.colors.bgCardSubtle,
-    borderRadius: Theme.radius.md,
-    padding: Theme.spacing.md,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
-    marginBottom: Theme.spacing.md,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
   },
   messageText: {
     fontSize: 15,
     fontWeight: '600',
-    color: Theme.colors.textPrimary,
+    color: '#0F172A',
     lineHeight: 22,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
-    marginBottom: Theme.spacing.md,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 14,
   },
   metaText: {
     fontSize: 11,
-    color: Theme.colors.textMuted,
+    color: '#64748B',
   },
   metaBold: {
     fontWeight: '600',
-    color: Theme.colors.textPrimary,
+    color: '#0F172A',
   },
   ackBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Theme.colors.successMuted,
-    borderRadius: Theme.radius.md,
-    padding: Theme.spacing.md,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.2)',
-    marginBottom: Theme.spacing.lg,
+    borderColor: '#A7F3D0',
+    marginBottom: 16,
   },
   ackLeft: {
     flexDirection: 'row',
@@ -387,20 +500,20 @@ const styles = StyleSheet.create({
   ackText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Theme.colors.successText,
+    color: '#047857',
   },
   ackSub: {
     fontSize: 11,
-    color: Theme.colors.successText,
+    color: '#059669',
     fontWeight: '500',
   },
   btnRow: {
     flexDirection: 'row',
-    gap: Theme.spacing.md,
+    gap: 12,
   },
   btn: {
     height: 46,
-    borderRadius: Theme.radius.md,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -408,12 +521,7 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     flex: 2,
-    backgroundColor: Theme.colors.primary,
-    shadowColor: Theme.colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#2563EB',
   },
   btnPrimaryText: {
     fontSize: 14,
@@ -422,14 +530,14 @@ const styles = StyleSheet.create({
   },
   btnSecondary: {
     flex: 1,
-    backgroundColor: Theme.colors.bgCard,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: '#CBD5E1',
   },
   btnSecondaryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Theme.colors.textPrimary,
+    color: '#0F172A',
   },
   resetBtn: {
     alignItems: 'center',
@@ -438,85 +546,23 @@ const styles = StyleSheet.create({
   },
   resetBtnText: {
     fontSize: 12,
-    color: Theme.colors.textMuted,
+    color: '#64748B',
     fontWeight: '500',
-  },
-  waitingCard: {
-    backgroundColor: Theme.colors.bgCard,
-    borderRadius: Theme.radius.lg,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    padding: Theme.spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Theme.spacing.lg,
-    minHeight: 220,
-  },
-  listeningOrb: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Theme.colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Theme.spacing.md,
-  },
-  waitingTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Theme.colors.textPrimary,
-    marginBottom: 6,
-  },
-  waitingDesc: {
-    fontSize: 13,
-    color: Theme.colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
-    marginBottom: Theme.spacing.lg,
-  },
-  modePillContainer: {
-    flexDirection: 'row',
-    backgroundColor: Theme.colors.bgCardSubtle,
-    borderRadius: Theme.radius.md,
-    padding: 3,
-  },
-  modePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Theme.radius.md - 2,
-  },
-  modePillActive: {
-    backgroundColor: Theme.colors.bgCard,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  modePillText: {
-    fontSize: 11,
-    color: Theme.colors.textMuted,
-    fontWeight: '500',
-  },
-  modePillTextActive: {
-    color: Theme.colors.primary,
-    fontWeight: '600',
   },
   testBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Theme.colors.bgCard,
-    borderRadius: Theme.radius.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: '#E2E8F0',
   },
   testBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Theme.colors.textSecondary,
+    color: '#475569',
   },
 });

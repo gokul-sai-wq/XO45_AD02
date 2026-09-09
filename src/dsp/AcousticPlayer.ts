@@ -12,10 +12,11 @@ export interface PlayableSignal {
 
 export class AcousticPlayer {
   private static audioCtx: any = null;
+  private static currentSource: any = null;
+  private static currentAudio: any = null;
 
   /**
    * Get or initialize AudioContext with the browser's native hardware sample rate.
-   * Using native sample rate avoids Windows WASAPI audio device sleep/silence bugs.
    */
   private static async getAudioContext(): Promise<any> {
     const AudioContextClass =
@@ -38,8 +39,6 @@ export class AcousticPlayer {
 
   /**
    * Play an acoustic burst directly through the device speaker.
-   * Guaranteed to resolve within duration + 50ms so UI never gets stuck.
-   * Works on 1st click, 2nd click, and every subsequent click.
    */
   public static async playSignal(signal: PlayableSignal): Promise<void> {
     const durationMs = Math.max(150, Math.round((signal.samples.length / signal.sampleRate) * 1000));
@@ -49,15 +48,15 @@ export class AcousticPlayer {
       const finish = () => {
         if (!isResolved) {
           isResolved = true;
+          this.currentSource = null;
+          this.currentAudio = null;
           resolve();
         }
       };
 
-      // Hard safety timer: guaranteed to unlock UI even if audio callback stalls
       const safetyTimer = setTimeout(finish, durationMs + 80);
 
       try {
-        // Attempt 1: Web Audio API (direct Float32Array PCM buffer)
         const ctx = await this.getAudioContext();
 
         if (ctx) {
@@ -71,6 +70,7 @@ export class AcousticPlayer {
           const source = ctx.createBufferSource();
           source.buffer = buffer;
           source.connect(ctx.destination);
+          this.currentSource = source;
 
           source.onended = () => {
             clearTimeout(safetyTimer);
@@ -81,10 +81,10 @@ export class AcousticPlayer {
           return;
         }
 
-        // Attempt 2: HTML5 Audio Element Fallback
         if (signal.base64Wav && typeof Audio !== 'undefined') {
           const audio = new Audio(signal.base64Wav);
           audio.volume = 1.0;
+          this.currentAudio = audio;
           audio.onended = () => {
             clearTimeout(safetyTimer);
             finish();
@@ -105,11 +105,11 @@ export class AcousticPlayer {
       } catch (err) {
         console.warn('Web Audio playback error, falling back to HTML5 audio:', err);
 
-        // Fallback to HTML5 Audio if Web Audio API throws
         if (signal.base64Wav && typeof Audio !== 'undefined') {
           try {
             const audio = new Audio(signal.base64Wav);
             audio.volume = 1.0;
+            this.currentAudio = audio;
             audio.onended = () => {
               clearTimeout(safetyTimer);
               finish();
@@ -133,9 +133,28 @@ export class AcousticPlayer {
   }
 
   /**
-   * Stop playback and suspend audio context
+   * Stop playback immediately and cancel active audio nodes
    */
   public static stop(): void {
+    try {
+      if (this.currentSource) {
+        this.currentSource.stop();
+        this.currentSource = null;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      }
+    } catch (e) {
+      // ignore
+    }
+
     if (this.audioCtx && this.audioCtx.state === 'running') {
       this.audioCtx.suspend().catch(() => {});
     }

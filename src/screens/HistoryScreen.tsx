@@ -13,18 +13,23 @@ import { Theme } from '../theme';
 import { HistoryStore, TransmissionRecord } from '../dsp/HistoryStore';
 
 export const HistoryScreen: React.FC = () => {
-  const [records, setRecords] = useState<TransmissionRecord[]>(HistoryStore.getRecords());
+  const [storeRecords, setStoreRecords] = useState<TransmissionRecord[]>(HistoryStore.getRecords());
+  const [activeFilter, setActiveFilter] = useState<'all' | 'sent' | 'received'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = HistoryStore.subscribe(() => {
-      setRecords(HistoryStore.getRecords());
+      setStoreRecords(HistoryStore.getRecords());
     });
     return unsubscribe;
   }, []);
 
-  const sentCount = records.filter((r) => r.type === 'sent').length;
-  const receivedCount = records.filter((r) => r.type === 'received').length;
+  // Filter live store records based on selected tab
+  const filteredRecords = storeRecords.filter((r) => {
+    if (activeFilter === 'sent') return r.type === 'sent';
+    if (activeFilter === 'received') return r.type === 'received';
+    return true;
+  });
 
   const handleCopy = async (id: string, text: string) => {
     try {
@@ -44,117 +49,88 @@ export const HistoryScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Top Hero Card (Inspired by reference screenshot's Net Movement card) */}
-      <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>ACOUSTIC AIR-GAP THROUGHPUT</Text>
-        <Text style={styles.heroMainText}>+{records.length} Packets</Text>
+      {/* Title matching Reference Screenshot */}
+      <Text style={styles.screenTitle}>Message History</Text>
 
-        <View style={styles.heroStatsRow}>
-          <View style={styles.heroStatItem}>
-            <View style={styles.statDotRed} />
-            <Text style={styles.heroStatLabel}>BROADCASTS</Text>
-            <Text style={styles.heroStatValue}>{sentCount} Sent</Text>
-          </View>
+      {/* Segmented Filter Tab (All | Sent | Received) */}
+      <View style={styles.segmentContainer}>
+        <TouchableOpacity
+          style={[styles.segmentTab, activeFilter === 'all' && styles.segmentTabActive]}
+          onPress={() => setActiveFilter('all')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.segmentText, activeFilter === 'all' && styles.segmentTextActive]}>
+            All
+          </Text>
+        </TouchableOpacity>
 
-          <View style={styles.heroStatDivider} />
+        <TouchableOpacity
+          style={[styles.segmentTab, activeFilter === 'sent' && styles.segmentTabActive]}
+          onPress={() => setActiveFilter('sent')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.segmentText, activeFilter === 'sent' && styles.segmentTextActive]}>
+            Sent
+          </Text>
+        </TouchableOpacity>
 
-          <View style={styles.heroStatItem}>
-            <View style={styles.statDotGreen} />
-            <Text style={styles.heroStatLabel}>DECODED</Text>
-            <Text style={styles.heroStatValue}>{receivedCount} Received</Text>
-          </View>
-        </View>
+        <TouchableOpacity
+          style={[styles.segmentTab, activeFilter === 'received' && styles.segmentTabActive]}
+          onPress={() => setActiveFilter('received')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.segmentText, activeFilter === 'received' && styles.segmentTextActive]}>
+            Received
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Dual Highlight Cards (Inspired by Investment / Return cards) */}
-      <View style={styles.dualCardsRow}>
-        <View style={[styles.highlightCard, styles.cardSentTint]}>
-          <View style={styles.highlightHeader}>
-            <View style={styles.iconCircleSent}>
-              <Feather name="arrow-up-right" size={16} color="#B91C1C" />
-            </View>
-            <Text style={styles.highlightTitleSent}>Transmitted</Text>
-          </View>
-          <Text style={styles.highlightSubSent}>Sound Wave Out</Text>
-          <Text style={styles.highlightNumSent}>{sentCount} Packets</Text>
-        </View>
-
-        <View style={[styles.highlightCard, styles.cardRecvTint]}>
-          <View style={styles.highlightHeader}>
-            <View style={styles.iconCircleRecv}>
-              <Feather name="arrow-down-left" size={16} color="#047857" />
-            </View>
-            <Text style={styles.highlightTitleRecv}>Received</Text>
-          </View>
-          <Text style={styles.highlightSubRecv}>Microphone In</Text>
-          <Text style={styles.highlightNumRecv}>{receivedCount} Packets</Text>
-        </View>
-      </View>
-
-      {/* Recent Activity Section Header */}
-      <View style={styles.activityHeader}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        {records.length > 0 && (
-          <TouchableOpacity onPress={() => HistoryStore.clearHistory()} activeOpacity={0.7}>
-            <Text style={styles.clearBtnText}>Clear All</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Activity Items List */}
-      {records.length === 0 ? (
+      {/* Records List */}
+      {filteredRecords.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="history" size={40} color={Theme.colors.textDim} />
-          <Text style={styles.emptyTitle}>No Transmission History</Text>
+          <MaterialCommunityIcons name="history" size={38} color="#94A3B8" />
+          <Text style={styles.emptyTitle}>No History Yet</Text>
           <Text style={styles.emptyDesc}>
             Broadcast or receive messages via sound waves to see them listed here in real time.
           </Text>
         </View>
       ) : (
         <View style={styles.recordsList}>
-          {records.map((item) => {
-            const isReceived = item.type === 'received';
+          {filteredRecords.map((item, idx) => {
+            const isSent = item.type === 'sent';
             return (
               <TouchableOpacity
-                key={item.id}
-                style={styles.recordCard}
+                key={`${item.id}-${idx}`}
+                style={styles.historyCard}
                 onPress={() => handleCopy(item.id, item.payload)}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
-                <View style={styles.recordLeft}>
-                  {/* Direction Icon Badge */}
-                  <View style={isReceived ? styles.badgeReceived : styles.badgeSent}>
-                    <Feather
-                      name={isReceived ? 'arrow-down' : 'arrow-up'}
-                      size={18}
-                      color={isReceived ? '#059669' : '#DC2626'}
-                    />
-                  </View>
-
-                  {/* Content & Metadata */}
-                  <View style={styles.recordDetails}>
-                    <Text style={styles.recordPayload} numberOfLines={1}>
-                      {item.payload}
-                    </Text>
-                    <View style={styles.recordSubRow}>
-                      <Text style={styles.recordMeta}>
-                        {item.frequencyBand.includes('Audible') ? '2.2 kHz' : '18.5 kHz'}
-                      </Text>
-                      <Text style={styles.bulletDot}>•</Text>
-                      <Text style={styles.recordMeta}>{item.timestamp}</Text>
-                    </View>
-                  </View>
+                {/* Left Circle Icon */}
+                <View style={isSent ? styles.iconCircleSent : styles.iconCircleReceived}>
+                  {isSent ? (
+                    <Feather name="send" size={18} color="#FFFFFF" />
+                  ) : (
+                    <MaterialCommunityIcons name="signal-cellular-3" size={18} color="#FFFFFF" />
+                  )}
                 </View>
 
-                {/* Right Side Status */}
-                <View style={styles.recordRight}>
-                  <Text style={isReceived ? styles.snrTagRecv : styles.snrTagSent}>
-                    {isReceived ? `+${item.snrDb || 24} dB` : 'CRC Valid'}
+                {/* Middle Content */}
+                <View style={styles.cardCenter}>
+                  <Text style={isSent ? styles.typeTagSent : styles.typeTagReceived}>
+                    {isSent ? 'Sent' : 'Received'}
                   </Text>
-                  <Text style={styles.copyNotice}>
-                    {copiedId === item.id ? 'Copied!' : 'Tap to copy'}
+                  <Text style={styles.payloadTitle} numberOfLines={1}>
+                    {item.payload}
                   </Text>
+                  <Text style={styles.timestampText}>{item.timestamp}</Text>
                 </View>
+
+                {/* Right Delivery Ratio / SNR Tag & Chevron */}
+                <View style={styles.cardRight}>
+                  <Text style={styles.ratioText}>{isSent ? 'CRC32 Valid' : `+${item.snrDb || 28} dB`}</Text>
+                  <Text style={styles.receivedSub}>{isSent ? 'ACK Confirmed' : 'Decoded'}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color="#94A3B8" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             );
           })}
@@ -167,273 +143,148 @@ export const HistoryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Theme.colors.bg,
+    backgroundColor: '#FAF8FF',
   },
   content: {
-    padding: Theme.spacing.lg,
-    paddingBottom: 110, // Generous padding so floating navbar does not obscure content
+    padding: 18,
+    paddingBottom: 110,
   },
-  heroCard: {
-    backgroundColor: '#0F172A', // Dark Navy hero card matching reference
+  screenTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
+    padding: 4,
+    marginBottom: 20,
+  },
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 20,
-    padding: Theme.spacing.xl,
-    marginBottom: Theme.spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  heroLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.8,
-    marginBottom: 6,
+  segmentTabActive: {
+    backgroundColor: '#0066FF',
+    shadowColor: '#0066FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  heroMainText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom: Theme.spacing.lg,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  heroStatItem: {
-    flex: 1,
-  },
-  heroStatDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    marginHorizontal: Theme.spacing.md,
-  },
-  statDotRed: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F87171',
-    marginBottom: 4,
-  },
-  statDotGreen: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4ADE80',
-    marginBottom: 4,
-  },
-  heroStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-  },
-  heroStatValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 2,
-  },
-  dualCardsRow: {
-    flexDirection: 'row',
-    gap: Theme.spacing.md,
-    marginBottom: Theme.spacing.xl,
-  },
-  highlightCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: Theme.spacing.md,
-    borderWidth: 1,
-  },
-  cardSentTint: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FEE2E2',
-  },
-  cardRecvTint: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#D1FAE5',
-  },
-  highlightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  iconCircleSent: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircleRecv: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  highlightTitleSent: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#991B1B',
-  },
-  highlightTitleRecv: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  highlightSubSent: {
-    fontSize: 11,
-    color: '#B91C1C',
-    opacity: 0.8,
-  },
-  highlightSubRecv: {
-    fontSize: 11,
-    color: '#047857',
-    opacity: 0.8,
-  },
-  highlightNumSent: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#7F1D1D',
-    marginTop: 6,
-  },
-  highlightNumRecv: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#064E3B',
-    marginTop: 6,
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  clearBtnText: {
-    fontSize: 12,
+  segmentText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: Theme.colors.primary,
+    color: '#475569',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
   },
   recordsList: {
-    gap: 10,
+    gap: 12,
   },
-  recordCard: {
+  historyCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Theme.colors.bgCard,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: Theme.spacing.md,
     borderWidth: 1,
-    borderColor: Theme.colors.border,
+    borderColor: '#E2E8F0',
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 3,
     elevation: 1,
   },
-  recordLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Theme.spacing.md,
-    flex: 1,
-    marginRight: 10,
-  },
-  badgeReceived: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#ECFDF5',
+  iconCircleSent: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
-  badgeSent: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#FEF2F2',
+  iconCircleReceived: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
-  recordDetails: {
+  cardCenter: {
     flex: 1,
+    marginRight: 8,
   },
-  recordPayload: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Theme.colors.textPrimary,
+  typeTagSent: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
     marginBottom: 2,
   },
-  recordSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  typeTagReceived: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6366F1',
+    marginBottom: 2,
   },
-  recordMeta: {
-    fontSize: 11,
-    color: Theme.colors.textMuted,
+  payloadTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
   },
-  bulletDot: {
-    fontSize: 11,
-    color: Theme.colors.textDim,
+  timestampText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
-  recordRight: {
+  cardRight: {
     alignItems: 'flex-end',
   },
-  snrTagRecv: {
-    fontSize: 13,
+  ratioText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#059669',
+    color: '#10B981',
   },
-  snrTagSent: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Theme.colors.primary,
-  },
-  copyNotice: {
-    fontSize: 10,
-    color: Theme.colors.textDim,
+  receivedSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#10B981',
     marginTop: 2,
   },
   emptyCard: {
-    backgroundColor: Theme.colors.bgCard,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: Theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
+    marginTop: 20,
     minHeight: 180,
   },
   emptyTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: Theme.colors.textPrimary,
-    marginTop: Theme.spacing.sm,
+    color: '#0F172A',
+    marginTop: 10,
     marginBottom: 4,
   },
   emptyDesc: {
-    fontSize: 12,
-    color: Theme.colors.textMuted,
+    fontSize: 13,
+    color: '#64748B',
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
     maxWidth: 260,
   },
 });
+
