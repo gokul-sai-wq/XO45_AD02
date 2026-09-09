@@ -360,45 +360,6 @@ export const ReceiverScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Live Demo Trigger Buttons */}
-          <View style={styles.demoButtonsContainer}>
-            <TouchableOpacity
-              style={styles.demoTriggerBtn}
-              onPress={() => {
-                OfdmReceiver.simulateIncoming('https://exam.university.edu/hall-ticket-2026');
-              }}
-              activeOpacity={0.8}
-            >
-              <Feather name="wifi" size={14} color="#2563EB" />
-              <Text style={styles.demoTriggerBtnText}>Simulate Acoustic Broadcast</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.demoTriggerBtn}
-              onPress={() => {
-                OfdmReceiver.simulatePartialReception('https://exam.university.edu/hall-ticket-2026');
-              }}
-              activeOpacity={0.8}
-            >
-              <Feather name="alert-triangle" size={14} color="#D97706" />
-              <Text style={styles.demoTriggerBtnText}>Test Challenge 1 (NACK Recovery)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.demoTriggerBtn}
-              onPress={() => {
-                OfdmReceiver.simulateLateJoinerSync('https://exam.university.edu/hall-ticket-2026', (info) => {
-                  setLateJoinerSynced(true);
-                  setSyncSource(info.source);
-                });
-              }}
-              activeOpacity={0.8}
-            >
-              <Feather name="zap" size={14} color="#0284C7" />
-              <Text style={styles.demoTriggerBtnText}>Test Challenge 2 (Late-Joiner Auto-Sync)</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
     </ScrollView>
@@ -775,32 +736,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
-  },
-  demoButtonsContainer: {
-    width: '100%',
-    marginTop: 20,
-    gap: 10,
-  },
-  demoTriggerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  demoTriggerBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
   },
 });

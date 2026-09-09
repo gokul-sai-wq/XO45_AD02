@@ -571,8 +571,10 @@ export class OfdmReceiver {
   }
 
   public static broadcastLocally(payload: string, durationMs: number = 500): void {
-    // Deliver in-memory to all active listeners immediately
-    this.handleDecodedMessage(payload, 28, true, 0);
+    // Deliver in-memory to receiver tab after 3 seconds for natural demo timing
+    setTimeout(() => {
+      this.handleDecodedMessage(payload, 28, true, 0);
+    }, 3000);
 
     if (typeof window !== 'undefined' && (window as any).BroadcastChannel) {
       try {
