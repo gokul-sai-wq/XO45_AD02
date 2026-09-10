@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
-    "eas-cli": "^23.2.0",
     "expo": "~57.0.21",
     "expo-asset": "~57.0.16",
     "expo-av": "~16.0.7",

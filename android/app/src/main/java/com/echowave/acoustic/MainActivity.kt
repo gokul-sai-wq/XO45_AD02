@@ -1,4 +1,4 @@
-package com.soundbridge.acoustic
+package com.echowave.acoustic
 
 import android.os.Build
 import android.os.Bundle
